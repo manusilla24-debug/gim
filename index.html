@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="es" data-view="boot">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Registro de Fuerza</title>
+<meta name="description" content="Registro de entrenamiento de fuerza: carga, series y repeticiones sesión a sesión, con progresión por ejercicio e historial completo.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F4F6F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161A1D" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gim">
+<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/assets/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="manifest" href="/assets/manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/assets/styles.css">
+<script src="/assets/boot.js"></script>
+</head>
+<body>
+<noscript>
+  <p class="noscript">Este registro necesita JavaScript: es el que guarda las sesiones en el navegador.</p>
+</noscript>
+
+<!-- Pantalla de acceso: elegir atleta -->
+<div class="gate" id="gate">
+  <div class="gate__inner">
+    <p class="wordmark wordmark--gate">
+      <span class="wordmark__mark">Gim</span>
+      <span class="wordmark__text">Registro de fuerza</span>
+    </p>
+
+    <div class="gate__head">
+      <h2 class="gate__title" id="gateTitle">¿Quién entrena?</h2>
+      <p class="gate__sub" id="gateSub">Cada atleta lleva su propio registro en este dispositivo.</p>
+    </div>
+
+    <ul class="profiles" id="profileList"></ul>
+
+    <form class="newuser" id="newUserForm" hidden>
+      <p class="field">
+        <label class="field__label" for="newUserName">Nombre del atleta</label>
+        <input type="text" id="newUserName" name="newUserName" maxlength="24" autocomplete="off"
+               placeholder="Manuel" required>
+      </p>
+      <div class="newuser__actions">
+        <button class="btn btn--primary" type="submit">Crear registro</button>
+        <button class="btn btn--quiet" type="button" id="cancelNewUser">Cancelar</button>
+      </div>
+      <p class="newuser__error" id="newUserError" role="alert" hidden></p>
+    </form>
+
+    <div class="gate__actions">
+      <button class="btn--add" type="button" id="addUser">Añadir atleta</button>
+      <button class="btn btn--quiet btn--compact" type="button" id="manageUsers" aria-pressed="false">Gestionar</button>
+    </div>
+
+    <p class="gate__note">
+      No hay cuentas ni contraseñas: los datos se guardan en este navegador y no salen de él.
+    </p>
+  </div>
+</div>
+
+<div class="app" id="app">
+<a class="skip" href="#registro">Saltar al registro</a>
+
+<header class="masthead">
+  <div class="masthead__inner">
+    <h1 class="wordmark">
+      <span class="wordmark__mark">Gim</span>
+      <span class="wordmark__text">Registro de fuerza</span>
+    </h1>
+    <div class="masthead__meta">
+      <button class="athlete" type="button" id="switchUser">
+        <span class="athlete__label">Atleta</span>
+        <span class="athlete__name" id="athleteName">—</span>
+        <svg class="athlete__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M7 10l5 5 5-5"></path>
+        </svg>
+        <span class="sr">Cambiar de atleta</span>
+      </button>
+      <button class="iconbtn" id="themeToggle" type="button" aria-pressed="false">
+        <span class="sr">Cambiar a tema oscuro</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2"></circle>
+          <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+  <div class="layout">
+
+    <aside class="rail">
+      <section class="block" aria-labelledby="cicloLabel">
+        <div class="block__head">
+          <h2 class="eyebrow" id="cicloLabel">Ciclo</h2>
+          <span class="eyebrow" aria-hidden="true">3 sesiones</span>
+        </div>
+        <ul class="split" id="splitList"></ul>
+      </section>
+
+      <section class="block" aria-labelledby="resumenLabel">
+        <div class="block__head">
+          <h2 class="eyebrow" id="resumenLabel">Resumen</h2>
+        </div>
+        <dl class="stats">
+          <div class="stat">
+            <dt class="stat__label">Sesiones</dt>
+            <dd class="stat__value" id="statSessions">0</dd>
+          </div>
+          <div class="stat">
+            <dt class="stat__label">Tonelaje</dt>
+            <dd class="stat__value" id="statVolume">0 <small>kg</small></dd>
+          </div>
+          <div class="stat">
+            <dt class="stat__label">Última sesión</dt>
+            <dd class="stat__value stat__value--sm" id="statLast">—</dd>
+          </div>
+        </dl>
+      </section>
+    </aside>
+
+    <div class="content">
+      <nav class="tabs" role="tablist" aria-label="Secciones">
+        <button class="tab" type="button" role="tab" id="tab-registro" aria-controls="registro" aria-selected="true">Sesión de hoy</button>
+        <button class="tab" type="button" role="tab" id="tab-progreso" aria-controls="progreso" aria-selected="false" tabindex="-1">Progresión</button>
+        <button class="tab" type="button" role="tab" id="tab-historial" aria-controls="historial" aria-selected="false" tabindex="-1">Historial</button>
+      </nav>
+
+      <!-- Sesión de hoy -->
+      <section class="panel" id="registro" role="tabpanel" aria-labelledby="tab-registro" tabindex="0">
+        <header class="panel-head">
+          <div>
+            <p class="eyebrow" id="routineTag">Bloque A · Empuje</p>
+            <h2 class="panel-head__title" id="routineTitle">Pecho y tríceps</h2>
+            <p class="panel-head__sub">
+              <time id="todayDate"></time>
+              <span id="prevHint"></span>
+            </p>
+          </div>
+          <p class="bib">
+            <span class="bib__label">Sesión</span>
+            <span class="bib__num" id="bibNumber">01</span>
+          </p>
+        </header>
+
+        <div class="log">
+          <div class="log__head" aria-hidden="true">
+            <span>N.º</span>
+            <span>Ejercicio</span>
+            <span>Carga</span>
+            <span>Series</span>
+            <span>Reps</span>
+            <span>Nota</span>
+            <span></span>
+          </div>
+          <ol class="log__rows" id="logRows"></ol>
+        </div>
+
+        <div class="log__tools">
+          <button class="btn--add" type="button" id="repeatLast">Copiar la última sesión de este bloque</button>
+          <button class="btn--add" type="button" id="addExercise">Añadir ejercicio</button>
+        </div>
+
+        <div class="actionbar">
+          <button class="btn btn--primary" type="button" id="completeSession">Cerrar sesión</button>
+          <button class="btn btn--outline" type="button" id="saveDraft">Guardar</button>
+          <button class="btn btn--quiet" type="button" id="clearDraft">Vaciar</button>
+          <p class="actionbar__note" id="draftState">Se guarda automáticamente en este dispositivo</p>
+        </div>
+      </section>
+
+      <!-- Progresión -->
+      <section class="panel" id="progreso" role="tabpanel" aria-labelledby="tab-progreso" tabindex="0" hidden>
+        <header class="panel-head">
+          <div>
+            <p class="eyebrow">Carga por sesión</p>
+            <h2 class="panel-head__title">Progresión</h2>
+            <p class="panel-head__sub">Carga máxima registrada en cada sesión, por ejercicio.</p>
+          </div>
+        </header>
+
+        <div class="filters">
+          <p class="field">
+            <label class="field__label" for="exerciseFilter">Ejercicio</label>
+            <select id="exerciseFilter"></select>
+          </p>
+          <p class="field">
+            <label class="field__label" for="rangeFilter">Periodo</label>
+            <select id="rangeFilter">
+              <option value="10">Últimas 10 sesiones</option>
+              <option value="20">Últimas 20 sesiones</option>
+              <option value="0">Todo el historial</option>
+            </select>
+          </p>
+        </div>
+
+        <figure class="card" id="chartCard">
+          <div class="card__head">
+            <div>
+              <h3 class="card__title" id="chartTitle">Carga máxima</h3>
+              <figcaption class="card__sub" id="chartSub">Kilogramos por sesión</figcaption>
+            </div>
+            <button class="btn btn--quiet btn--compact" type="button" id="toggleTable" aria-pressed="false">Ver tabla</button>
+          </div>
+          <div class="card__body">
+            <div class="chart" id="chart"></div>
+            <div class="table-wrap" id="chartTable" hidden></div>
+          </div>
+        </figure>
+
+        <dl class="tiles" id="progressTiles"></dl>
+      </section>
+
+      <!-- Historial -->
+      <section class="panel" id="historial" role="tabpanel" aria-labelledby="tab-historial" tabindex="0" hidden>
+        <header class="panel-head">
+          <div>
+            <p class="eyebrow" id="historyCount">Sin sesiones</p>
+            <h2 class="panel-head__title">Historial</h2>
+            <p class="panel-head__sub">Cada sesión cerrada, de la más reciente a la más antigua.</p>
+          </div>
+        </header>
+        <div id="historyList"></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer class="footer">
+  <div class="footer__inner">
+    <p class="footer__text">
+      Los datos viven solo en este navegador: nada se envía a ningún servidor, y la
+      aplicación funciona sin conexión. Descarga una copia si cambias de dispositivo.
+    </p>
+    <div class="footer__actions">
+      <button class="btn btn--outline" type="button" id="installApp" hidden>Instalar</button>
+      <button class="btn btn--outline" type="button" id="exportData">Descargar copia</button>
+      <button class="btn btn--outline" type="button" id="importData">Restaurar copia</button>
+      <button class="btn btn--danger" type="button" id="resetData">Borrar registro</button>
+      <input type="file" id="importFile" accept="application/json,.json" class="sr" tabindex="-1" aria-hidden="true">
+    </div>
+  </div>
+</footer>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<dialog id="confirmDialog" aria-labelledby="dialogTitle">
+  <div class="dialog__body">
+    <h2 class="dialog__title" id="dialogTitle">Confirmar</h2>
+    <p class="dialog__text" id="dialogText"></p>
+    <p class="field" id="dialogField" hidden>
+      <label class="field__label" for="dialogInput">Nombre</label>
+      <input type="text" id="dialogInput" maxlength="24" autocomplete="off">
+    </p>
+  </div>
+  <div class="dialog__actions">
+    <button class="btn btn--quiet" type="button" data-close="cancel">Cancelar</button>
+    <button class="btn btn--primary" type="button" data-close="ok" id="dialogConfirm">Confirmar</button>
+  </div>
+</dialog>
+
+<script src="/assets/app.js"></script>
+</body>
+</html>
