@@ -9,6 +9,10 @@ bloque siguiente.
   ciclo, borrador e historial. Se pueden añadir, renombrar y eliminar.
 - **Progresión** por ejercicio: carga máxima de cada sesión, con mejor marca,
   última carga y variación. El gráfico tiene su tabla equivalente.
+- **Color por bloque**: pecho y tríceps usa naranja, espalda y bíceps azul, y
+  hombro y abdomen verde mientras se registra cada entrenamiento.
+- **Calendario**: muestra los días entrenados con un círculo del color del bloque
+  realizado; permite consultar también meses anteriores.
 - **Historial** completo con el tonelaje (carga × series × repeticiones) de cada
   sesión.
 - **Copiar la última sesión** del bloque para partir de lo que ya se hizo.

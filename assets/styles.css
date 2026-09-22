@@ -22,11 +22,14 @@
   --ink-2:          #41474D;
   --muted:          #5F666C;
 
-  /* Acento: azul del disco de 20 kg */
-  --accent:         #1A5FA8;
-  --accent-hover:   #164F8C;
+  /* Acento del bloque activo: A naranja, B azul, C verde. */
+  --accent:         #C95718;
+  --accent-hover:   #A94611;
   --accent-on:      #FFFFFF;
-  --accent-wash:    rgba(26, 95, 168, 0.07);
+  --accent-wash:    rgba(201, 87, 24, 0.08);
+  --routine-a:      #C95718;
+  --routine-b:      #1A5FA8;
+  --routine-c:      #23814B;
 
   /* Estado (siempre acompañado de signo o rótulo, nunca color a secas) */
   --good:           #0F6A1A;
@@ -58,6 +61,9 @@
     --accent-hover:  #6BA6E2;
     --accent-on:     #0B0E10;
     --accent-wash:   rgba(74, 144, 217, 0.10);
+    --routine-a:     #ED864C;
+    --routine-b:     #6DA9E5;
+    --routine-c:     #55B878;
     --good:          #3FA34D;
     --crit:          #E06A66;
   }
@@ -78,8 +84,61 @@
   --accent-hover:  #6BA6E2;
   --accent-on:     #0B0E10;
   --accent-wash:   rgba(74, 144, 217, 0.10);
+  --routine-a:     #ED864C;
+  --routine-b:     #6DA9E5;
+  --routine-c:     #55B878;
   --good:          #3FA34D;
   --crit:          #E06A66;
+}
+
+/* El color de trabajo acompaña al bloque abierto, sin alterar la legibilidad
+   de las superficies ni el significado de los estados de éxito/error. */
+:root[data-routine="a"] {
+  --accent: #C95718;
+  --accent-hover: #A94611;
+  --accent-wash: rgba(201, 87, 24, 0.08);
+}
+:root[data-routine="b"] {
+  --accent: #1A5FA8;
+  --accent-hover: #164F8C;
+  --accent-wash: rgba(26, 95, 168, 0.07);
+}
+:root[data-routine="c"] {
+  --accent: #23814B;
+  --accent-hover: #19663A;
+  --accent-wash: rgba(35, 129, 75, 0.08);
+}
+:root[data-theme="dark"][data-routine="a"] {
+  --accent: #ED864C;
+  --accent-hover: #FFAA78;
+  --accent-wash: rgba(237, 134, 76, 0.12);
+}
+:root[data-theme="dark"][data-routine="b"] {
+  --accent: #6DA9E5;
+  --accent-hover: #9AC7F1;
+  --accent-wash: rgba(109, 169, 229, 0.12);
+}
+:root[data-theme="dark"][data-routine="c"] {
+  --accent: #55B878;
+  --accent-hover: #83D49E;
+  --accent-wash: rgba(85, 184, 120, 0.12);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-routine="a"] {
+    --accent: #ED864C;
+    --accent-hover: #FFAA78;
+    --accent-wash: rgba(237, 134, 76, 0.12);
+  }
+  :root:not([data-theme="light"])[data-routine="b"] {
+    --accent: #6DA9E5;
+    --accent-hover: #9AC7F1;
+    --accent-wash: rgba(109, 169, 229, 0.12);
+  }
+  :root:not([data-theme="light"])[data-routine="c"] {
+    --accent: #55B878;
+    --accent-hover: #83D49E;
+    --accent-wash: rgba(85, 184, 120, 0.12);
+  }
 }
 
 /* --- Base --------------------------------------------------------------- */
@@ -205,11 +264,39 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
   color: var(--muted);
 }
 
+.calendar-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-right: auto;
+  padding: 7px 9px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: border-color .12s, background-color .12s, color .12s;
+}
+.calendar-toggle:hover,
+.calendar-toggle[aria-pressed="true"] {
+  border-color: var(--line-strong);
+  background: var(--accent-wash);
+  color: var(--ink);
+}
+.calendar-toggle svg { width: 17px; height: 17px; color: var(--accent); }
+
 .masthead__meta { display: flex; align-items: center; gap: 14px; }
 
 @media (max-width: 640px) {
   .masthead .wordmark__text { display: none; }
   .masthead .wordmark__mark { font-size: 26px; }
+  .calendar-toggle { margin-left: auto; margin-right: 0; padding-inline: 8px; }
+  .calendar-toggle span { display: none; }
 }
 
 .athlete {
@@ -963,6 +1050,84 @@ tbody td:first-child { font-family: var(--font-ui); }
   .entry__vol { grid-column: 2; }
   .entry__tools { grid-row: 1; grid-column: 3; }
   .entry__body { padding-left: 14px; }
+}
+
+/* --- Calendario --------------------------------------------------------- */
+
+.calendar { overflow: hidden; }
+.calendar__head {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.calendar__month {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.03em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.calendar__weekdays,
+.calendar__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.calendar__weekdays {
+  padding: 12px 12px 6px;
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+.calendar__grid { padding: 0 12px 12px; gap: 4px; }
+.calendar__cell { min-width: 0; aspect-ratio: 1; }
+.calendar__day {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 38px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.calendar__day--today { border-color: var(--line-strong); color: var(--ink); }
+.calendar__day--a { border: 3px solid var(--routine-a); color: var(--ink); }
+.calendar__day--b { border: 3px solid var(--routine-b); color: var(--ink); }
+.calendar__day--c { border: 3px solid var(--routine-c); color: var(--ink); }
+.calendar__day--multiple { border-color: var(--line-strong); }
+.calendar__markers {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface);
+  border-radius: 99px;
+}
+.calendar__marker,
+.calendar__key { display: inline-block; width: 7px; height: 7px; border-radius: 50%; }
+.calendar__marker--a, .calendar__key--a { background: var(--routine-a); }
+.calendar__marker--b, .calendar__key--b { background: var(--routine-b); }
+.calendar__marker--c, .calendar__key--c { background: var(--routine-c); }
+.calendar__legend { display: flex; flex-wrap: wrap; gap: 10px 18px; color: var(--muted); font-size: 13px; }
+.calendar__legend li { display: inline-flex; align-items: center; gap: 6px; }
+.calendar__key { width: 10px; height: 10px; }
+
+@media (max-width: 460px) {
+  .calendar__grid { padding-inline: 8px; gap: 2px; }
+  .calendar__weekdays { padding-inline: 8px; }
+  .calendar__day { min-height: 34px; font-size: 12px; }
 }
 
 /* --- Vacíos ------------------------------------------------------------- */

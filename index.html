@@ -74,6 +74,13 @@
       <span class="wordmark__mark">Gim</span>
       <span class="wordmark__text">Registro de fuerza</span>
     </h1>
+    <button class="calendar-toggle" type="button" id="calendarToggle" aria-controls="calendario" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3.5" y="5.5" width="17" height="15" rx="1.5"></rect>
+        <path d="M7.5 3.5v4M16.5 3.5v4M3.5 10h17"></path>
+      </svg>
+      <span>Calendario</span>
+    </button>
     <div class="masthead__meta">
       <button class="athlete" type="button" id="switchUser">
         <span class="athlete__label">Atleta</span>
@@ -229,6 +236,39 @@
           </div>
         </header>
         <div id="historyList"></div>
+      </section>
+
+      <!-- Calendario de sesiones -->
+      <section class="panel" id="calendario" aria-labelledby="calendarTitle" tabindex="0" hidden>
+        <header class="panel-head">
+          <div>
+            <p class="eyebrow">Registro de entrenos</p>
+            <h2 class="panel-head__title" id="calendarTitle">Calendario</h2>
+            <p class="panel-head__sub">Cada círculo indica el bloque que entrenaste ese día.</p>
+          </div>
+        </header>
+
+        <div class="calendar card">
+          <div class="calendar__head">
+            <button class="iconbtn" type="button" id="calendarPrevious" aria-label="Mes anterior">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 5-7 7 7 7"></path></svg>
+            </button>
+            <h3 class="calendar__month" id="calendarMonth">—</h3>
+            <button class="iconbtn" type="button" id="calendarNext" aria-label="Mes siguiente">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 5 7 7-7 7"></path></svg>
+            </button>
+          </div>
+          <div class="calendar__weekdays" aria-hidden="true">
+            <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
+          </div>
+          <ol class="calendar__grid" id="calendarGrid" aria-label="Días del mes"></ol>
+        </div>
+
+        <ul class="calendar__legend" aria-label="Leyenda de bloques">
+          <li><span class="calendar__key calendar__key--a" aria-hidden="true"></span> Pecho y tríceps</li>
+          <li><span class="calendar__key calendar__key--b" aria-hidden="true"></span> Espalda y bíceps</li>
+          <li><span class="calendar__key calendar__key--c" aria-hidden="true"></span> Hombro y abdomen</li>
+        </ul>
       </section>
     </div>
   </div>

@@ -68,6 +68,7 @@ let currentUser = null;
 let chartExercise = null;   // ejercicio seleccionado en Progresión
 let tableVisible = false;
 let managing = false;       // el selector, en modo gestión
+let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
 /* --- Utilidades --------------------------------------------------------- */
 
@@ -382,6 +383,11 @@ function renderSplit() {
   }));
 }
 
+function applyRoutineAccent() {
+  const routine = ROUTINE_BY_ID.get(state.activeId);
+  if (routine) document.documentElement.dataset.routine = routine.id;
+}
+
 function renderStats() {
   const sessions = state.sessions;
   $('statSessions').textContent = nf0.format(sessions.length);
@@ -406,6 +412,71 @@ function renderStats() {
   $('historyCount').textContent = sessions.length === 0
     ? 'Sin sesiones'
     : nf0.format(sessions.length) + (sessions.length === 1 ? ' sesión cerrada' : ' sesiones cerradas');
+}
+
+/* --- Calendario -------------------------------------------------------- */
+
+const monthLong = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' });
+const dayLong = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+
+function dateKey(date) {
+  return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+}
+
+function sessionsByDay() {
+  const days = new Map();
+  for (const session of state.sessions) {
+    const when = new Date(session.iso);
+    if (Number.isNaN(when.getTime())) continue;
+    const routine = ROUTINE_BY_ID.get(session.routineId)
+      || SPLIT.find(item => item.code === session.code);
+    if (!routine) continue;
+    const key = dateKey(when);
+    const records = days.get(key) || [];
+    records.push({ routine, session });
+    days.set(key, records);
+  }
+  return days;
+}
+
+function renderCalendar() {
+  const year = calendarMonth.getFullYear();
+  const month = calendarMonth.getMonth();
+  const first = new Date(year, month, 1);
+  const offset = (first.getDay() + 6) % 7; // lunes es la primera columna
+  const totalDays = new Date(year, month + 1, 0).getDate();
+  const today = dateKey(new Date());
+  const byDay = sessionsByDay();
+
+  $('calendarMonth').textContent = monthLong.format(first);
+  const cells = [];
+  for (let i = 0; i < offset; i += 1) cells.push(el('li', { class: 'calendar__cell', 'aria-hidden': 'true' }));
+
+  for (let day = 1; day <= totalDays; day += 1) {
+    const date = new Date(year, month, day);
+    const key = dateKey(date);
+    const records = byDay.get(key) || [];
+    const routineIds = [...new Set(records.map(record => record.routine.id))];
+    const labels = records.map(record => 'Bloque ' + record.routine.code + ': ' + record.routine.name);
+    const classes = ['calendar__day'];
+    if (key === today) classes.push('calendar__day--today');
+    if (routineIds.length === 1) classes.push('calendar__day--' + routineIds[0]);
+    if (routineIds.length > 1) classes.push('calendar__day--multiple');
+    const description = labels.length ? ': ' + labels.join('; ') : ': sin entrenamiento registrado';
+    const markers = routineIds.length > 1
+      ? el('span', { class: 'calendar__markers', 'aria-hidden': 'true' },
+          routineIds.map(id => el('span', { class: 'calendar__marker calendar__marker--' + id }))
+        )
+      : null;
+    cells.push(el('li', { class: 'calendar__cell' },
+      el('span', {
+        class: classes.join(' '),
+        'aria-current': key === today ? 'date' : null,
+        'aria-label': dayLong.format(date) + description
+      }, String(day), markers)
+    ));
+  }
+  $('calendarGrid').replaceChildren(...cells);
 }
 
 /* --- Panel de sesión ---------------------------------------------------- */
@@ -985,6 +1056,7 @@ function selectRoutine(routineId) {
   if (!ROUTINE_BY_ID.has(routineId) || routineId === state.activeId) return;
   state.activeId = routineId;
   save(true);
+  applyRoutineAccent();
   renderSplit();
   renderSessionHead();
   renderLog();
@@ -1379,23 +1451,29 @@ async function removeUser(id) {
 /* --- Pestañas ----------------------------------------------------------- */
 
 const TABS = ['registro', 'progreso', 'historial'];
+const VIEWS = TABS.concat('calendario');
 
 function tabFromHash() {
   const name = decodeURIComponent(location.hash.replace('#', ''));
-  return TABS.includes(name) ? name : TABS[0];
+  return VIEWS.includes(name) ? name : TABS[0];
 }
 
 function selectTab(name, focus) {
+  if (!VIEWS.includes(name)) name = TABS[0];
+  const calendarOpen = name === 'calendario';
   TABS.forEach(id => {
     const tab = $('tab-' + id);
     const panel = $(id);
     const selected = id === name;
     tab.setAttribute('aria-selected', String(selected));
     tab.tabIndex = selected ? 0 : -1;
-    panel.hidden = !selected;
+    panel.hidden = calendarOpen || !selected;
   });
-  if (focus) $('tab-' + name).focus();
+  $('calendario').hidden = !calendarOpen;
+  $('calendarToggle').setAttribute('aria-pressed', String(calendarOpen));
+  if (focus) (calendarOpen ? $('calendario') : $('tab-' + name)).focus();
   if (name === 'progreso') renderProgress();
+  if (calendarOpen) renderCalendar();
 
   // El accesorio de la app instalada abre directamente una sección.
   const target = name === TABS[0] ? location.pathname : '#' + name;
@@ -1467,11 +1545,13 @@ function applyTheme(theme) {
 /* --- Arranque ----------------------------------------------------------- */
 
 function renderAll() {
+  applyRoutineAccent();
   renderSplit();
   renderSessionHead();
   renderLog();
   renderStats();
   renderHistory();
+  renderCalendar();
   if (!$('progreso').hidden) renderProgress();
 }
 
@@ -1532,6 +1612,18 @@ function bindEvents() {
   $('completeSession').addEventListener('click', completeSession);
   $('saveDraft').addEventListener('click', () => { save(); toast('Registro guardado'); });
   $('clearDraft').addEventListener('click', clearDraft);
+
+  $('calendarToggle').addEventListener('click', () => {
+    selectTab($('calendario').hidden ? 'calendario' : 'registro', true);
+  });
+  $('calendarPrevious').addEventListener('click', () => {
+    calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
+    renderCalendar();
+  });
+  $('calendarNext').addEventListener('click', () => {
+    calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
+    renderCalendar();
+  });
 
   $('historyList').addEventListener('click', event => {
     const button = event.target.closest('[data-delete-session]');
