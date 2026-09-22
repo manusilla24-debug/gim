@@ -509,6 +509,7 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
   align-items: center;
   gap: 12px;
   width: 100%;
+  height: 100%;
   padding: 11px 12px;
   background: var(--surface);
   border: 0;

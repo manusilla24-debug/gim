@@ -32,6 +32,7 @@ const SPLIT = [
   },
   {
     id: 'c', code: 'C', name: 'Hombro y abdomen', focus: 'Hombro · core',
+    shortName: 'Hombro y abs.',
     exercises: [
       { id: 'c1', name: 'Press militar' },
       { id: 'c2', name: 'Elevaciones laterales' },
@@ -372,7 +373,7 @@ function renderSplit() {
       },
         el('span', { class: 'split__code', text: routine.code, 'aria-hidden': 'true' }),
         el('span', { class: 'split__name' },
-          routine.name,
+          routine.shortName || routine.name,
           el('span', { class: 'split__focus', text: routine.focus })
         ),
         isNext && state.sessions.length > 0
