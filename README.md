@@ -64,8 +64,8 @@ Al cambiar archivos, sube `VERSION` en `sw.js` para renovar la caché.
 
 ## Desplegar en Vercel
 
-El repositorio ya está preparado (`vercel.json`), pero **no está vinculado a
-ninguna cuenta**: no hay `.vercel/`, ni proyecto, ni variables de entorno.
+La aplicación está desplegada en Vercel y el repositorio incluye su configuración
+en `vercel.json`. El vínculo local de la CLI vive en `.vercel/` y no se versiona.
 
 Opción A, desde el panel de Vercel: *Add New → Project*, importar este
 repositorio y desplegar. La configuración se detecta sola (*Framework preset:
