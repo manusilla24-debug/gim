@@ -17,7 +17,7 @@ const SPLIT = [
       { id: 'a2', name: 'Aperturas en máquina' },
       { id: 'a3', name: 'Aperturas en polea' },
       { id: 'a4', name: 'Extensión de tríceps', equip: 'Polea' },
-      { id: 'a5', name: 'Fondos' }
+      { id: 'a5', name: 'Fondos', tracksLoad: false }
     ]
   },
   {
@@ -32,7 +32,7 @@ const SPLIT = [
   },
   {
     id: 'c', code: 'C', name: 'Hombro y abdomen', focus: 'Hombro · core',
-    shortName: 'Hombro y abs.',
+    shortName: 'Hombro y abs',
     exercises: [
       { id: 'c1', name: 'Press militar' },
       { id: 'c2', name: 'Elevaciones laterales' },
