@@ -1129,10 +1129,10 @@ async function completeSession() {
     return;
   }
 
-  const ok = await confirmAction('Cerrar la sesión',
+  const ok = await confirmAction('Terminar entrenamiento',
     'Se guardan ' + entries.length + (entries.length === 1 ? ' ejercicio' : ' ejercicios')
     + ' en el historial y el registro pasa al bloque siguiente.',
-    'Cerrar sesión');
+    'Terminar entrenamiento');
   if (!ok) return;
 
   const now = new Date();
@@ -1154,7 +1154,7 @@ async function completeSession() {
 
   save(true);
   renderAll();
-  toast('Sesión cerrada · toca el bloque ' + next.code + ': ' + next.name);
+  toast('Entrenamiento terminado · toca el bloque ' + next.code + ': ' + next.name);
 }
 
 /* Rellena el bloque con lo que se hizo la última vez: en el gimnasio se parte
