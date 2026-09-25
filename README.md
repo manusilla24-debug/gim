@@ -14,7 +14,9 @@ bloque siguiente.
 - **Calendario**: muestra los días entrenados con un círculo del color del bloque
   realizado; permite consultar también meses anteriores.
 - **Historial** completo con el tonelaje (carga × series × repeticiones) de cada
-  sesión.
+  sesión. Las sesiones cerradas se pueden corregir desde el botón del lápiz;
+  los abdominales se conservan en el historial únicamente como repeticiones.
+- **Resumen directo** con el número de sesiones y la última actividad realizada.
 - **Copiar la última sesión** del bloque para partir de lo que ya se hizo.
 - **Instalable y sin conexión**: es una PWA con service worker; una vez abierta
   funciona en el gimnasio aunque no haya cobertura. En Chrome y Edge aparece el

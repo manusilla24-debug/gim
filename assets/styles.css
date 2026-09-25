@@ -581,7 +581,7 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
 @media (max-width: 960px) {
   .split { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .split__flag { display: none; }
-  .stats { grid-template-columns: repeat(3, 1fr); }
+  .stats { grid-template-columns: repeat(2, 1fr); }
   .stat__value { font-size: 22px; }
 }
 
@@ -1208,6 +1208,18 @@ dialog::backdrop { background: rgba(8, 10, 12, 0.55); }
 }
 .dialog__text { font-size: 14px; color: var(--ink-2); }
 .dialog__actions { display: flex; gap: 10px; justify-content: flex-end; padding: 14px 20px; border-top: 1px solid var(--line); }
+
+#editSessionDialog { width: min(680px, calc(100% - 24px)); max-height: calc(100vh - 24px); }
+#editSessionDialog .dialog__body { max-height: calc(100vh - 110px); overflow-y: auto; }
+.edit-session { display: grid; gap: 12px; margin-top: 6px; }
+.edit-session__entry { min-width: 0; padding: 12px; border: 1px solid var(--line); }
+.edit-session__name { padding-inline: 6px; font-weight: 600; }
+.edit-session__fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.edit-session__note { grid-column: 1 / -1; }
+
+@media (max-width: 620px) {
+  .edit-session__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 /* En pantalla táctil, nada por debajo del pulgar */
 @media (pointer: coarse) {

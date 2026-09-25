@@ -393,12 +393,6 @@ function renderStats() {
   const sessions = state.sessions;
   $('statSessions').textContent = nf0.format(sessions.length);
 
-  const volume = sessions.reduce((t, s) => t + (s.volume || 0), 0);
-  $('statVolume').replaceChildren(
-    document.createTextNode(nf0.format(Math.round(volume)) + ' '),
-    el('small', { text: 'kg' })
-  );
-
   const last = sessions[0];
   const statLast = $('statLast');
   if (last) {
@@ -635,6 +629,13 @@ function renderHistory() {
         el('p', { class: 'entry__vol', text: session.volume ? nf0.format(Math.round(session.volume)) + ' kg' : '—' }),
         el('span', { class: 'entry__tools' },
           el('button', {
+            class: 'iconbtn', type: 'button', dataset: { editSession: session.id },
+            title: 'Editar sesión'
+          },
+            el('span', { class: 'sr', text: 'Editar la sesión del ' + dateShort.format(when) }),
+            iconPencil()
+          ),
+          el('button', {
             class: 'iconbtn', type: 'button', dataset: { deleteSession: session.id },
             title: 'Eliminar sesión'
           },
@@ -650,7 +651,7 @@ function renderHistory() {
                 entry.name,
                 entry.note ? el('span', { class: 'entry__item-note', text: entry.note }) : null
               ),
-              el('span', { class: 'entry__item-load', text: previousLabel(entry, num(entry.load) > 0) })
+              el('span', { class: 'entry__item-load', text: historyEntryLabel(session, entry) })
             )))
           )
         : null
@@ -1114,11 +1115,12 @@ async function completeSession() {
     const name = (exercise.name || '').trim();
     if (!name) continue;
     if (!(load > 0 || sets > 0 || reps > 0 || values.note)) continue;
+    const repetitionsOnly = routine.id === 'c' && exercise.id === 'c4';
     entries.push({
       name,
       equip: exercise.equip || '',
-      load: load === '' ? '' : load,
-      sets: sets === '' ? '' : sets,
+      load: repetitionsOnly ? '' : (load === '' ? '' : load),
+      sets: repetitionsOnly ? '' : (sets === '' ? '' : sets),
       reps: reps === '' ? '' : reps,
       note: String(values.note || '').trim()
     });
@@ -1219,6 +1221,67 @@ async function deleteSession(id) {
   save(true);
   renderAll();
   toast('Sesión eliminada');
+}
+
+function editNumberField(label, field, value) {
+  return el('label', { class: 'field' },
+    el('span', { class: 'field__label', text: label }),
+    el('input', {
+      type: 'number', inputmode: field === 'load' ? 'decimal' : 'numeric',
+      step: field === 'load' ? '2.5' : '1', min: '0', value,
+      dataset: { editField: field }
+    })
+  );
+}
+
+function editSession(id) {
+  const session = state.sessions.find(item => item.id === id);
+  if (!session) return;
+  const dialog = $('editSessionDialog');
+  dialog.dataset.sessionId = id;
+  $('editSessionText').textContent = session.name + ' · ' + dateShort.format(new Date(session.iso));
+  $('editSessionEntries').replaceChildren(...session.entries.map((entry, index) => {
+    const repetitionsOnly = isAbdominalEntry(session, entry);
+    return el('fieldset', { class: 'edit-session__entry', dataset: { editEntry: String(index) } },
+      el('legend', { class: 'edit-session__name', text: entry.name }),
+      el('div', { class: 'edit-session__fields' },
+        repetitionsOnly ? null : editNumberField('Carga (kg)', 'load', entry.load),
+        repetitionsOnly ? null : editNumberField('Series', 'sets', entry.sets),
+        editNumberField('Repeticiones', 'reps', entry.reps),
+        el('label', { class: 'field edit-session__note' },
+          el('span', { class: 'field__label', text: 'Nota' }),
+          el('input', { type: 'text', value: entry.note || '', dataset: { editField: 'note' } })
+        )
+      )
+    );
+  }));
+  dialog.showModal();
+  const first = dialog.querySelector('input');
+  if (first) first.focus();
+}
+
+function saveEditedSession(event) {
+  event.preventDefault();
+  const dialog = $('editSessionDialog');
+  const session = state.sessions.find(item => item.id === dialog.dataset.sessionId);
+  if (!session) { dialog.close(); return; }
+  dialog.querySelectorAll('[data-edit-entry]').forEach(row => {
+    const entry = session.entries[Number(row.dataset.editEntry)];
+    if (!entry) return;
+    row.querySelectorAll('[data-edit-field]').forEach(input => {
+      const field = input.dataset.editField;
+      entry[field] = field === 'note' ? input.value.trim() : num(input.value);
+    });
+    if (isAbdominalEntry(session, entry)) {
+      entry.load = '';
+      entry.sets = '';
+    }
+  });
+  session.volume = volumeOf(session.entries);
+  save(true);
+  dialog.close();
+  renderAll();
+  toast('Sesión actualizada');
 }
 
 function exportData() {
@@ -1459,6 +1522,24 @@ function tabFromHash() {
   return VIEWS.includes(name) ? name : TABS[0];
 }
 
+function iconPencil() {
+  return svg('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.7', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', width: '16', height: '16' },
+    svg('path', { d: 'M4 20h4l11-11a2.8 2.8 0 0 0-4-4L4 16v4ZM13.5 6.5l4 4' })
+  );
+}
+
+function isAbdominalEntry(session, entry) {
+  return session.routineId === 'c' && entry.name === 'Abdominales';
+}
+
+function historyEntryLabel(session, entry) {
+  if (isAbdominalEntry(session, entry)) {
+    const reps = num(entry.reps);
+    return reps > 0 ? reps + ' reps' : '—';
+  }
+  return previousLabel(entry, num(entry.load) > 0);
+}
+
 function selectTab(name, focus) {
   if (!VIEWS.includes(name)) name = TABS[0];
   const calendarOpen = name === 'calendario';
@@ -1627,6 +1708,8 @@ function bindEvents() {
   });
 
   $('historyList').addEventListener('click', event => {
+    const edit = event.target.closest('[data-edit-session]');
+    if (edit) { editSession(edit.dataset.editSession); return; }
     const button = event.target.closest('[data-delete-session]');
     if (button) deleteSession(button.dataset.deleteSession);
   });
@@ -1675,6 +1758,8 @@ function bindEvents() {
       $('confirmDialog').close('ok');
     }
   });
+  $('editSessionForm').addEventListener('submit', saveEditedSession);
+  $('cancelEditSession').addEventListener('click', () => $('editSessionDialog').close());
 
   addEventListener('hashchange', () => {
     if (currentUser) selectTab(tabFromHash());

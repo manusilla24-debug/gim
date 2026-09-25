@@ -123,10 +123,6 @@
             <dd class="stat__value" id="statSessions">0</dd>
           </div>
           <div class="stat">
-            <dt class="stat__label">Tonelaje</dt>
-            <dd class="stat__value" id="statVolume">0 <small>kg</small></dd>
-          </div>
-          <div class="stat">
             <dt class="stat__label">Última sesión</dt>
             <dd class="stat__value stat__value--sm" id="statLast">—</dd>
           </div>
@@ -306,6 +302,20 @@
     <button class="btn btn--quiet" type="button" data-close="cancel">Cancelar</button>
     <button class="btn btn--primary" type="button" data-close="ok" id="dialogConfirm">Confirmar</button>
   </div>
+</dialog>
+
+<dialog id="editSessionDialog" aria-labelledby="editSessionTitle">
+  <form method="dialog" id="editSessionForm">
+    <div class="dialog__body">
+      <h2 class="dialog__title" id="editSessionTitle">Editar sesión</h2>
+      <p class="dialog__text" id="editSessionText"></p>
+      <div class="edit-session" id="editSessionEntries"></div>
+    </div>
+    <div class="dialog__actions">
+      <button class="btn btn--quiet" type="button" id="cancelEditSession">Cancelar</button>
+      <button class="btn btn--primary" type="submit">Guardar cambios</button>
+    </div>
+  </form>
 </dialog>
 
 <script src="/assets/app.js"></script>
