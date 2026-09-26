@@ -5,6 +5,11 @@ tracción, hombro y abdomen). Se anota la carga, las series y las repeticiones d
 cada ejercicio; al cerrar la sesión pasa al historial y el registro avanza al
 bloque siguiente.
 
+- **Inicio personal**: próximo bloque, actividad reciente, mejores
+  cargas y un mapa de constancia de las últimas 16 semanas.
+- **Ayuda durante la sesión**: cada ejercicio muestra la última referencia y
+  un objetivo conservador; una nueva mejor carga recibe un aviso especial.
+
 - **Varios atletas**: al abrir se elige quién entrena. Cada uno tiene su propio
   ciclo, borrador e historial. Se pueden añadir, renombrar y eliminar.
 - **Progresión** por ejercicio: carga máxima de cada sesión, con mejor marca,

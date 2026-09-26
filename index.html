@@ -139,13 +139,69 @@
 
     <div class="content">
       <nav class="tabs" role="tablist" aria-label="Secciones">
-        <button class="tab" type="button" role="tab" id="tab-registro" aria-controls="registro" aria-selected="true">Sesión de hoy</button>
+        <button class="tab" type="button" role="tab" id="tab-inicio" aria-controls="inicio" aria-selected="true">Inicio</button>
+        <button class="tab" type="button" role="tab" id="tab-registro" aria-controls="registro" aria-selected="false" tabindex="-1">Entrenar</button>
         <button class="tab" type="button" role="tab" id="tab-progreso" aria-controls="progreso" aria-selected="false" tabindex="-1">Progresión</button>
         <button class="tab" type="button" role="tab" id="tab-historial" aria-controls="historial" aria-selected="false" tabindex="-1">Historial</button>
       </nav>
 
+      <!-- Inicio personal -->
+      <section class="panel home" id="inicio" role="tabpanel" aria-labelledby="tab-inicio" tabindex="0">
+        <div class="home-hero">
+          <div class="home-hero__copy">
+            <p class="eyebrow" id="homeEyebrow">Tu próximo entrenamiento</p>
+            <h2 class="home-hero__title" id="homeTitle">Listo para entrenar</h2>
+            <p class="home-hero__sub" id="homeSub"></p>
+            <button class="btn btn--primary home-hero__action" type="button" id="startTraining">Abrir sesión</button>
+          </div>
+          <div class="home-hero__mark" aria-hidden="true">
+            <span id="homeCode">A</span>
+            <small>Bloque</small>
+          </div>
+        </div>
+
+        <dl class="home-stats" id="homeStats"></dl>
+
+        <div class="home-grid">
+          <section class="card home-card" aria-labelledby="homeRecentTitle">
+            <div class="card__head">
+              <div>
+                <p class="eyebrow">Última sesión</p>
+                <h3 class="card__title" id="homeRecentTitle">Tu referencia</h3>
+              </div>
+            </div>
+            <div class="card__body" id="homeRecent"></div>
+          </section>
+
+          <section class="card home-card" aria-labelledby="homeBestTitle">
+            <div class="card__head">
+              <div>
+                <p class="eyebrow">Mejores marcas</p>
+                <h3 class="card__title" id="homeBestTitle">Récords personales</h3>
+              </div>
+            </div>
+            <div class="card__body" id="homeBests"></div>
+          </section>
+        </div>
+
+        <section class="card home-card" aria-labelledby="activityTitle">
+          <div class="card__head">
+            <div>
+              <p class="eyebrow">Últimas 16 semanas</p>
+              <h3 class="card__title" id="activityTitle">Ritmo de entrenamiento</h3>
+              <p class="card__sub">Cada celda resume la carga de trabajo de ese día.</p>
+            </div>
+            <p class="activity__total" id="activityTotal"></p>
+          </div>
+          <div class="card__body activity-wrap">
+            <div class="activity" id="activityHeatmap" role="img"></div>
+            <div class="activity__legend" aria-hidden="true"><span>Menos</span><i></i><i></i><i></i><i></i><span>Más</span></div>
+          </div>
+        </section>
+      </section>
+
       <!-- Sesión de hoy -->
-      <section class="panel" id="registro" role="tabpanel" aria-labelledby="tab-registro" tabindex="0">
+      <section class="panel" id="registro" role="tabpanel" aria-labelledby="tab-registro" tabindex="0" hidden>
         <header class="panel-head">
           <div>
             <p class="eyebrow" id="routineTag">Bloque A · Empuje</p>

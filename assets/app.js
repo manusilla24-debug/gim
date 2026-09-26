@@ -594,6 +594,122 @@ function renderStats() {
     : nf0.format(sessions.length) + (sessions.length === 1 ? ' sesión cerrada' : ' sesiones cerradas');
 }
 
+/* --- Inicio personal --------------------------------------------------- */
+
+function bestLoads() {
+  const best = new Map();
+  for (const session of state.sessions) {
+    for (const entry of session.entries) {
+      const load = num(entry.load);
+      if (!(load > 0)) continue;
+      const current = best.get(entry.name);
+      if (!current || load > current.load) best.set(entry.name, { name: entry.name, load, iso: session.iso });
+    }
+  }
+  return [...best.values()].sort((a, b) => b.load - a.load);
+}
+
+function currentStreak() {
+  const keys = [...new Set(state.sessions.map(session => dateKey(new Date(session.iso))))].sort().reverse();
+  if (!keys.length) return 0;
+  let streak = 1;
+  for (let index = 1; index < keys.length; index += 1) {
+    const newer = new Date(keys[index - 1] + 'T12:00:00');
+    const older = new Date(keys[index] + 'T12:00:00');
+    const days = Math.round((newer - older) / 86400000);
+    if (days > 7) break;
+    streak += 1;
+  }
+  return streak;
+}
+
+function renderHome() {
+  const routine = ROUTINE_BY_ID.get(state.nextId) || ROUTINE_BY_ID.get(state.activeId);
+  const last = state.sessions[0];
+  const recent = state.sessions.slice(0, 4);
+  const best = bestLoads().slice(0, 4);
+
+  $('homeEyebrow').textContent = state.sessions.length ? 'Tu próximo entrenamiento' : 'Tu punto de partida';
+  $('homeTitle').textContent = 'Bloque ' + routine.code + ' · ' + routine.name;
+  $('homeCode').textContent = routine.code;
+  $('homeSub').textContent = last
+    ? 'Última sesión ' + relativeDay(last.iso) + '. Tienes tus referencias listas para continuar.'
+    : 'Tu rutina personal de tres bloques está preparada. Empieza cuando quieras.';
+
+  const thisMonth = state.sessions.filter(session => {
+    const when = new Date(session.iso);
+    const now = new Date();
+    return when.getMonth() === now.getMonth() && when.getFullYear() === now.getFullYear();
+  }).length;
+  const homeStat = (label, value, note) => el('div', { class: 'home-stat' },
+    el('dt', { class: 'home-stat__label', text: label }),
+    el('dd', { class: 'home-stat__value', text: value }),
+    el('span', { class: 'home-stat__note', text: note })
+  );
+  $('homeStats').replaceChildren(
+    homeStat('Sesiones', nf0.format(state.sessions.length), 'historial completo'),
+    homeStat('Este mes', nf0.format(thisMonth), thisMonth === 1 ? 'entrenamiento' : 'entrenamientos'),
+    homeStat('Ritmo', nf0.format(currentStreak()), 'sesiones sin pausas largas')
+  );
+
+  $('homeRecent').replaceChildren(recent.length
+    ? el('ol', { class: 'home-list' }, recent.map(session => el('li', { class: 'home-list__item' },
+        el('span', { class: 'home-list__code home-list__code--' + session.routineId, text: session.code }),
+        el('span', { class: 'home-list__main' }, session.name,
+          el('small', { text: dateShort.format(new Date(session.iso)) + ' · ' + session.entries.length + ' ejercicios' })),
+        el('strong', { text: session.volume ? nf0.format(Math.round(session.volume)) + ' kg' : '—' })
+      )))
+    : el('div', { class: 'empty empty--compact' },
+        el('p', { class: 'empty__title', text: 'Aún no hay referencias' }),
+        el('p', { text: 'Tu primera sesión empezará a construir este resumen.' }))
+  );
+
+  $('homeBests').replaceChildren(best.length
+    ? el('ol', { class: 'home-list' }, best.map((record, index) => el('li', { class: 'home-list__item' },
+        el('span', { class: 'home-list__rank', text: pad2(index + 1) }),
+        el('span', { class: 'home-list__main' }, record.name,
+          el('small', { text: relativeDay(record.iso) })),
+        el('strong', { text: kg(record.load) })
+      )))
+    : el('div', { class: 'empty empty--compact' },
+        el('p', { class: 'empty__title', text: 'Tus marcas aparecerán aquí' }),
+        el('p', { text: 'Se actualizan al cerrar cada entrenamiento.' }))
+  );
+  renderActivity();
+}
+
+function renderActivity() {
+  const host = $('activityHeatmap');
+  const byDay = new Map();
+  state.sessions.forEach(session => {
+    const key = dateKey(new Date(session.iso));
+    byDay.set(key, (byDay.get(key) || 0) + (num(session.volume) || 1));
+  });
+  const end = new Date();
+  end.setHours(12, 0, 0, 0);
+  const start = new Date(end);
+  start.setDate(start.getDate() - 111);
+  const values = [...byDay.values()].filter(Boolean);
+  const max = Math.max(...values, 1);
+  const cells = [];
+  let trained = 0;
+  for (let index = 0; index < 112; index += 1) {
+    const day = new Date(start);
+    day.setDate(start.getDate() + index);
+    const value = byDay.get(dateKey(day)) || 0;
+    if (value) trained += 1;
+    const level = value ? Math.max(1, Math.ceil((value / max) * 4)) : 0;
+    cells.push(el('span', {
+      class: 'activity__cell activity__cell--' + level,
+      title: dayLong.format(day) + (value ? ' · ' + nf0.format(Math.round(value)) + ' kg' : ' · descanso'),
+      'aria-hidden': 'true'
+    }));
+  }
+  host.replaceChildren(...cells);
+  host.setAttribute('aria-label', trained + (trained === 1 ? ' día entrenado' : ' días entrenados') + ' durante las últimas 16 semanas');
+  $('activityTotal').textContent = trained + (trained === 1 ? ' día activo' : ' días activos');
+}
+
 /* --- Calendario -------------------------------------------------------- */
 
 const monthLong = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' });
@@ -684,6 +800,7 @@ function renderLog() {
     const values = draftOf(routineId, exercise.id);
     const tracksLoad = exercise.tracksLoad !== false;
     const previous = lastRecordOf(exercise.name);
+    const plan = buildCoachPlan().rows.find(row => row.id === exercise.id);
     const inputId = suffix => 'f-' + routineId + '-' + exercise.id + '-' + suffix;
 
     const nameBlock = exercise.custom
@@ -702,7 +819,11 @@ function renderLog() {
                 'Última: ',
                 el('b', { text: previousLabel(previous.record, tracksLoad) }),
                 ' · ' + relativeDay(previous.iso))
-            : el('span', { class: 'ex__last', text: 'Sin registro previo' })
+            : el('span', { class: 'ex__last', text: 'Sin registro previo' }),
+          plan ? el('span', { class: 'ex__target' },
+            el('span', { text: 'Objetivo' }),
+            el('b', { text: previousLabel(plan.values, tracksLoad) })
+          ) : null
         );
 
     const loadField = tracksLoad
@@ -1194,9 +1315,10 @@ function chartSummary() {
 
 let toastTimer = null;
 
-function toast(message) {
+function toast(message, highlight) {
   const node = $('toast');
   node.textContent = message;
+  node.classList.toggle('toast--record', !!highlight);
   node.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { node.hidden = true; }, 2600);
@@ -1322,6 +1444,13 @@ async function completeSession() {
     'Terminar entrenamiento');
   if (!ok) return;
 
+  const records = entries.filter(entry => {
+    const load = num(entry.load);
+    if (!(load > 0)) return false;
+    const previousBest = Math.max(0, ...state.sessions.flatMap(session =>
+      session.entries.filter(item => item.name === entry.name).map(item => num(item.load) || 0)));
+    return load > previousBest;
+  });
   const now = new Date();
   state.sessions.unshift({
     id: 's' + now.getTime().toString(36),
@@ -1341,7 +1470,11 @@ async function completeSession() {
 
   save(true);
   renderAll();
-  toast('Entrenamiento terminado · toca el bloque ' + next.code + ': ' + next.name);
+  if (records.length) {
+    toast('Nueva mejor marca · ' + records.map(record => record.name + ' ' + kg(num(record.load))).join(' · '), true);
+  } else {
+    toast('Entrenamiento terminado · toca el bloque ' + next.code + ': ' + next.name);
+  }
 }
 
 /* Rellena el bloque con lo que se hizo la última vez: en el gimnasio se parte
@@ -1699,7 +1832,7 @@ async function removeUser(id) {
 
 /* --- Pestañas ----------------------------------------------------------- */
 
-const TABS = ['registro', 'progreso', 'historial'];
+const TABS = ['inicio', 'registro', 'progreso', 'historial'];
 const VIEWS = TABS.concat('calendario');
 
 function tabFromHash() {
@@ -1820,6 +1953,7 @@ function renderAll() {
   renderStats();
   renderHistory();
   renderCalendar();
+  renderHome();
   if (!$('progreso').hidden) renderProgress();
 }
 
@@ -1847,6 +1981,10 @@ function bindEvents() {
     renderProfiles();
   });
   $('switchUser').addEventListener('click', leaveUser);
+  $('startTraining').addEventListener('click', () => {
+    selectRoutine(state.nextId);
+    selectTab('registro', true);
+  });
 
   $('coachToggle').addEventListener('click', openCoach);
   $('closeCoach').addEventListener('click', () => $('coachDialog').close());
