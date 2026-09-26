@@ -18,6 +18,9 @@ bloque siguiente.
   los abdominales se conservan en el historial únicamente como repeticiones.
 - **Resumen directo** con el número de sesiones y la última actividad realizada.
 - **Copiar la última sesión** del bloque para partir de lo que ya se hizo.
+- **Entrenador local**: planifica el bloque del día a partir de las últimas
+  sesiones, señala posibles estancamientos y puede aplicar una propuesta al
+  borrador. El análisis funciona sin conexión y no envía el historial fuera.
 - **Instalable y sin conexión**: es una PWA con service worker; una vez abierta
   funciona en el gimnasio aunque no haya cobertura. En Chrome y Edge aparece el
   botón «Instalar» en el pie; en iPhone se añade desde *Compartir → Añadir a

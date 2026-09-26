@@ -74,7 +74,14 @@
       <span class="wordmark__mark">Gim</span>
       <span class="wordmark__text">Registro de fuerza</span>
     </h1>
-    <button class="calendar-toggle" type="button" id="calendarToggle" aria-controls="calendario" aria-pressed="false">
+    <button class="coach-toggle" type="button" id="coachToggle" aria-haspopup="dialog" aria-label="Abrir entrenador">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M8 9h8M8 13h5"></path>
+        <path d="M5.5 4.5h13a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H11l-4.5 3v-3h-1a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z"></path>
+      </svg>
+      <span>Entrenador</span>
+    </button>
+    <button class="calendar-toggle" type="button" id="calendarToggle" aria-controls="calendario" aria-pressed="false" aria-label="Abrir calendario">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <rect x="3.5" y="5.5" width="17" height="15" rx="1.5"></rect>
         <path d="M7.5 3.5v4M16.5 3.5v4M3.5 10h17"></path>
@@ -316,6 +323,36 @@
       <button class="btn btn--primary" type="submit">Guardar cambios</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="coachDialog" class="coach-dialog" aria-labelledby="coachTitle">
+  <section class="coach" aria-label="Entrenador local">
+    <header class="coach__head">
+      <div>
+        <p class="eyebrow">Privado · funciona sin conexión</p>
+        <h2 class="coach__title" id="coachTitle">Entrenador</h2>
+      </div>
+      <button class="iconbtn" type="button" id="closeCoach" aria-label="Cerrar entrenador">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>
+      </button>
+    </header>
+    <div class="coach__messages" id="coachMessages" role="log" aria-live="polite" aria-relevant="additions"></div>
+    <div class="coach__suggestions" id="coachSuggestions" aria-label="Preguntas rápidas">
+      <button type="button" data-coach-prompt="plan">Planificar sesión</button>
+      <button type="button" data-coach-prompt="plateau">Ver estancamientos</button>
+      <button type="button" data-coach-prompt="today">¿Qué toca hoy?</button>
+    </div>
+    <div class="coach__plan-actions" id="coachPlanActions" hidden>
+      <button class="btn btn--primary" type="button" id="applyCoachPlan">Aplicar a la sesión</button>
+      <button class="btn btn--quiet" type="button" id="explainCoachPlan">¿Cómo lo has calculado?</button>
+    </div>
+    <form class="coach__form" id="coachForm">
+      <label class="sr" for="coachInput">Escribe al entrenador</label>
+      <input type="text" id="coachInput" maxlength="180" autocomplete="off" placeholder="Pregúntame por tu entrenamiento…">
+      <button class="btn btn--primary" type="submit">Enviar</button>
+    </form>
+    <p class="coach__note">Las propuestas se calculan en este dispositivo a partir de tu registro. Ajusta o detén el entrenamiento si aparece dolor.</p>
+  </section>
 </dialog>
 
 <script src="/assets/app.js"></script>

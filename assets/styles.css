@@ -264,7 +264,8 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
   color: var(--muted);
 }
 
-.calendar-toggle {
+.calendar-toggle,
+.coach-toggle {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -283,20 +284,25 @@ a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset:
   transition: border-color .12s, background-color .12s, color .12s;
 }
 .calendar-toggle:hover,
-.calendar-toggle[aria-pressed="true"] {
+.calendar-toggle[aria-pressed="true"],
+.coach-toggle:hover {
   border-color: var(--line-strong);
   background: var(--accent-wash);
   color: var(--ink);
 }
-.calendar-toggle svg { width: 17px; height: 17px; color: var(--accent); }
+.calendar-toggle svg,
+.coach-toggle svg { width: 17px; height: 17px; color: var(--accent); }
+
+.coach-toggle { margin-left: 4px; }
 
 .masthead__meta { display: flex; align-items: center; gap: 14px; }
 
 @media (max-width: 640px) {
   .masthead .wordmark__text { display: none; }
   .masthead .wordmark__mark { font-size: 26px; }
-  .calendar-toggle { margin-left: auto; margin-right: 0; padding-inline: 8px; }
-  .calendar-toggle span { display: none; }
+  .coach-toggle { margin-left: auto; padding-inline: 8px; }
+  .calendar-toggle { margin-left: 0; margin-right: 0; padding-inline: 8px; }
+  .calendar-toggle span, .coach-toggle span { display: none; }
 }
 
 .athlete {
@@ -1221,6 +1227,85 @@ dialog::backdrop { background: rgba(8, 10, 12, 0.55); }
   .edit-session__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* --- Entrenador local -------------------------------------------------- */
+
+.coach-dialog {
+  width: min(620px, calc(100vw - 24px));
+  max-height: min(760px, calc(100dvh - 24px));
+}
+.coach { display: grid; grid-template-rows: auto minmax(180px, 1fr) auto auto auto auto; max-height: inherit; }
+.coach__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.coach__title {
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-size: 28px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.coach__messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 260px;
+  padding: 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--raised);
+}
+.coach__message { align-self: flex-start; max-width: min(88%, 52ch); }
+.coach__message--user { align-self: flex-end; }
+.coach__bubble {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px 12px 12px 3px;
+  background: var(--surface);
+  white-space: pre-line;
+}
+.coach__message--user .coach__bubble {
+  border-color: var(--accent);
+  border-radius: 12px 12px 3px 12px;
+  background: var(--accent-wash);
+}
+.coach__speaker { margin-bottom: 4px; font-size: 11px; color: var(--muted); }
+.coach__suggestions { display: flex; gap: 8px; padding: 10px 14px; overflow-x: auto; border-top: 1px solid var(--line); }
+.coach__suggestions { scrollbar-width: none; }
+.coach__suggestions::-webkit-scrollbar { display: none; }
+.coach__suggestions button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 7px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 99px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.coach__plan-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 10px; }
+.coach__form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
+.coach__note { padding: 0 14px 12px; font-size: 11px; color: var(--muted); }
+
+@media (max-width: 640px) {
+  .coach-dialog {
+    width: 100%;
+    max-width: none;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px));
+    margin: auto 0 0;
+    border-width: 1px 0 0;
+    border-radius: 10px 10px 0 0;
+  }
+  .coach { height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px))); }
+  .coach__messages { min-height: 0; }
+  .coach__form { padding-bottom: 10px; }
+  .coach__note { padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+}
+
 /* En pantalla táctil, nada por debajo del pulgar */
 @media (pointer: coarse) {
   input[type="number"], input[type="text"], select, textarea { min-height: 46px; font-size: 16px; }
@@ -1268,6 +1353,6 @@ dialog::backdrop { background: rgba(8, 10, 12, 0.55); }
 }
 
 @media print {
-  .tabs, .actionbar, .footer__actions, .iconbtn, .btn, .rail { display: none; }
+  .tabs, .actionbar, .footer__actions, .iconbtn, .btn, .rail, .coach-toggle { display: none; }
   body { background: #fff; }
 }

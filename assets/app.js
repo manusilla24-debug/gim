@@ -70,6 +70,8 @@ let chartExercise = null;   // ejercicio seleccionado en Progresión
 let tableVisible = false;
 let managing = false;       // el selector, en modo gestión
 let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let coachPlan = null;       // propuesta efímera; el historial sigue siendo la fuente
+let coachUserId = null;
 
 /* --- Utilidades --------------------------------------------------------- */
 
@@ -382,6 +384,182 @@ function renderSplit() {
       )
     );
   }));
+}
+
+/* --- Entrenador local --------------------------------------------------
+   No simula conocimiento externo: compara el historial del atleta y aplica
+   reglas pequeñas, explicables y conservadoras de sobrecarga progresiva.
+   ------------------------------------------------------------------------ */
+
+function coachHistory(routineId, exerciseName) {
+  const rows = [];
+  for (const session of state.sessions) {
+    if (session.routineId !== routineId) continue;
+    const entry = session.entries.find(item => item.name === exerciseName);
+    if (entry) rows.push({ entry, iso: session.iso });
+  }
+  return rows;
+}
+
+function samePerformance(a, b) {
+  return num(a.load) === num(b.load) && num(a.reps) === num(b.reps) && num(a.sets) === num(b.sets);
+}
+
+function buildCoachPlan() {
+  const routine = ROUTINE_BY_ID.get(state.activeId);
+  const rows = exercisesOf(routine.id).filter(exercise => (exercise.name || '').trim()).map(exercise => {
+    const historyRows = coachHistory(routine.id, exercise.name);
+    const latest = historyRows[0] && historyRows[0].entry;
+    const plateau = historyRows.length >= 3
+      && samePerformance(historyRows[0].entry, historyRows[1].entry)
+      && samePerformance(historyRows[1].entry, historyRows[2].entry);
+    const tracksLoad = exercise.tracksLoad !== false;
+
+    if (!latest) {
+      return {
+        id: exercise.id,
+        name: exercise.name,
+        values: { load: '', sets: tracksLoad ? '3' : '', reps: '10', note: '' },
+        plateau: false,
+        reason: 'Sin historial: referencia inicial moderada; ajusta las repeticiones al ejercicio.'
+      };
+    }
+
+    const load = num(latest.load);
+    const sets = num(latest.sets);
+    const reps = num(latest.reps);
+    const values = {
+      load: load === '' ? '' : String(load),
+      sets: sets === '' ? '' : String(sets),
+      reps: reps === '' ? '' : String(reps),
+      note: ''
+    };
+    let reason = 'Mantener la última referencia.';
+
+    if (!tracksLoad || load === '') {
+      if (reps > 0) values.reps = String(reps + 1);
+      reason = 'Progresión suave: una repetición más que la última vez.';
+    } else if (reps >= 12 && !plateau) {
+      values.load = String(Math.round((load + 2.5) * 2) / 2);
+      values.reps = '8';
+      reason = 'Completaste 12 o más repeticiones: pequeña subida de carga y vuelta a 8 repeticiones.';
+    } else if (reps > 0) {
+      values.reps = String(reps + 1);
+      reason = plateau
+        ? 'Posible estancamiento: mantén la carga e intenta solo una repetición más.'
+        : 'Sobrecarga conservadora: misma carga y una repetición más.';
+    }
+
+    return { id: exercise.id, name: exercise.name, values, plateau, reason };
+  });
+
+  return { routine, rows };
+}
+
+function coachLine(row) {
+  const values = row.values;
+  const parts = [];
+  if (values.load !== '') parts.push(values.load + ' kg');
+  if (values.sets !== '') parts.push(values.sets + ' series');
+  if (values.reps !== '') parts.push(values.reps + ' reps');
+  return '• ' + row.name + ': ' + (parts.join(' × ') || 'ajuste libre') + (row.plateau ? ' · revisar' : '');
+}
+
+function addCoachMessage(text, user) {
+  const messages = $('coachMessages');
+  const message = el('article', { class: 'coach__message' + (user ? ' coach__message--user' : '') },
+    el('p', { class: 'coach__speaker', text: user ? 'Tú' : 'Entrenador local' }),
+    el('p', { class: 'coach__bubble', text })
+  );
+  messages.append(message);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function coachWelcome() {
+  const routine = ROUTINE_BY_ID.get(state.activeId);
+  const previous = state.sessions.find(session => session.routineId === routine.id);
+  const context = previous
+    ? 'La última vez que hiciste este bloque fue ' + relativeDay(previous.iso) + '.'
+    : 'Todavía no tienes una sesión anterior de este bloque.';
+  addCoachMessage('Hoy está programado el bloque ' + routine.code + ': ' + routine.name + '.\n' + context
+    + ' Puedo prepararte una propuesta o revisar posibles estancamientos.');
+}
+
+function openCoach() {
+  const dialog = $('coachDialog');
+  if (coachUserId !== currentUser.id) {
+    $('coachMessages').replaceChildren();
+    coachPlan = null;
+    coachUserId = currentUser.id;
+    coachWelcome();
+  } else if (!$('coachMessages').children.length) {
+    coachWelcome();
+  }
+  $('coachPlanActions').hidden = !coachPlan || coachPlan.routine.id !== state.activeId;
+  dialog.showModal();
+  $('coachInput').focus();
+}
+
+function showCoachPlan() {
+  coachPlan = buildCoachPlan();
+  const previous = state.sessions.find(session => session.routineId === coachPlan.routine.id);
+  const intro = previous
+    ? 'He usado tu última sesión del bloque ' + coachPlan.routine.code + ' y las anteriores comparables:'
+    : 'Como aún no hay historial para este bloque, te dejo referencias iniciales editables:';
+  addCoachMessage(intro + '\n' + coachPlan.rows.map(coachLine).join('\n'));
+  $('coachPlanActions').hidden = false;
+}
+
+function showCoachPlateaus() {
+  const plan = buildCoachPlan();
+  const plateaus = plan.rows.filter(row => row.plateau);
+  if (!plateaus.length) {
+    addCoachMessage(state.sessions.length < 3
+      ? 'Aún no hay tres registros iguales comparables para confirmar un estancamiento. Sigue registrando carga, series y repeticiones.'
+      : 'No veo tres sesiones consecutivas idénticas en los ejercicios de este bloque. La progresión parece activa.');
+    return;
+  }
+  addCoachMessage('He encontrado ' + plateaus.length + (plateaus.length === 1 ? ' posible estancamiento:' : ' posibles estancamientos:')
+    + '\n' + plateaus.map(row => '• ' + row.name + ': las tres últimas referencias son iguales.').join('\n')
+    + '\nNo hace falta cambiarlo todo: prueba primero una repetición más con la misma carga.');
+}
+
+function explainCoachPlan() {
+  addCoachMessage('Uso reglas transparentes: comparo solo sesiones del bloque actual; con 8–11 repeticiones propongo una más, y al superar 12 propongo subir 2,5 kg y volver a 8. Tres registros idénticos señalan un posible estancamiento. Es una referencia, no una orden: adapta la carga a tu técnica y sensaciones.');
+}
+
+function answerCoach(raw) {
+  const text = String(raw || '').trim();
+  if (!text) return;
+  addCoachMessage(text, true);
+  const intent = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (/plan|prepar|propon|sesion|entreno/.test(intent)) showCoachPlan();
+  else if (/estanc|progres|mejor|avance/.test(intent)) showCoachPlateaus();
+  else if (/toca|bloque|hoy|dia/.test(intent)) coachWelcome();
+  else if (/como|calcula|por que|criterio/.test(intent)) explainCoachPlan();
+  else addCoachMessage('Puedo ayudarte a “planificar la sesión”, “ver estancamientos”, decirte “qué toca hoy” o explicar “cómo lo calculo”. No envío tus datos ni consulto servicios externos.');
+}
+
+async function applyCoachPlan() {
+  if (!coachPlan || coachPlan.routine.id !== state.activeId) {
+    showCoachPlan();
+    return;
+  }
+  const current = state.draft[state.activeId] || {};
+  const written = Object.values(current).some(row => row.load || row.sets || row.reps || row.note);
+  if (written) {
+    const ok = await confirmAction('Aplicar propuesta',
+      'Se sustituye lo que hayas anotado hoy en el bloque ' + coachPlan.routine.code + '. Después podrás editar cualquier valor.',
+      'Aplicar propuesta');
+    if (!ok) return;
+  }
+  const draft = {};
+  coachPlan.rows.forEach(row => { draft[row.id] = Object.assign({}, row.values); });
+  state.draft[state.activeId] = draft;
+  saveNow();
+  renderLog();
+  $('coachDialog').close();
+  toast('Propuesta aplicada · revisa las cargas antes de empezar');
 }
 
 function applyRoutineAccent() {
@@ -1553,6 +1731,7 @@ function selectTab(name, focus) {
   });
   $('calendario').hidden = !calendarOpen;
   $('calendarToggle').setAttribute('aria-pressed', String(calendarOpen));
+  $('calendarToggle').setAttribute('aria-label', calendarOpen ? 'Cerrar calendario' : 'Abrir calendario');
   if (focus) (calendarOpen ? $('calendario') : $('tab-' + name)).focus();
   if (name === 'progreso') renderProgress();
   if (calendarOpen) renderCalendar();
@@ -1661,6 +1840,28 @@ function bindEvents() {
     renderProfiles();
   });
   $('switchUser').addEventListener('click', leaveUser);
+
+  $('coachToggle').addEventListener('click', openCoach);
+  $('closeCoach').addEventListener('click', () => $('coachDialog').close());
+  $('coachSuggestions').addEventListener('click', event => {
+    const button = event.target.closest('[data-coach-prompt]');
+    if (!button) return;
+    const prompts = {
+      plan: 'Planificar la sesión',
+      plateau: 'Ver estancamientos',
+      today: '¿Qué toca hoy?'
+    };
+    answerCoach(prompts[button.dataset.coachPrompt]);
+  });
+  $('coachForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const input = $('coachInput');
+    answerCoach(input.value);
+    input.value = '';
+    input.focus();
+  });
+  $('applyCoachPlan').addEventListener('click', applyCoachPlan);
+  $('explainCoachPlan').addEventListener('click', explainCoachPlan);
 
   $('splitList').addEventListener('click', event => {
     const button = event.target.closest('[data-routine]');
