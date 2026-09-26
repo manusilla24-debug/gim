@@ -475,6 +475,13 @@ function addCoachMessage(text, user) {
   messages.scrollTop = messages.scrollHeight;
 }
 
+function openModal(dialog) {
+  document.querySelectorAll('dialog[open]').forEach(open => {
+    if (open !== dialog) open.close('cancel');
+  });
+  if (!dialog.open) dialog.showModal();
+}
+
 function coachWelcome() {
   const routine = ROUTINE_BY_ID.get(state.activeId);
   const previous = state.sessions.find(session => session.routineId === routine.id);
@@ -496,7 +503,7 @@ function openCoach() {
     coachWelcome();
   }
   $('coachPlanActions').hidden = !coachPlan || coachPlan.routine.id !== state.activeId;
-  dialog.showModal();
+  openModal(dialog);
   $('coachInput').focus();
 }
 
@@ -1204,7 +1211,7 @@ function confirmAction(title, text, confirmLabel) {
   return new Promise(resolve => {
     dialog.addEventListener('close', () => resolve(dialog.returnValue === 'ok'), { once: true });
     dialog.returnValue = 'cancel';
-    dialog.showModal();
+    openModal(dialog);
     $('dialogConfirm').focus();
   });
 }
@@ -1224,7 +1231,7 @@ function promptAction(title, text, confirmLabel, value) {
       resolve(dialog.returnValue === 'ok' ? input.value : null);
     }, { once: true });
     dialog.returnValue = 'cancel';
-    dialog.showModal();
+    openModal(dialog);
     input.focus();
     input.select();
   });
@@ -1433,7 +1440,7 @@ function editSession(id) {
       )
     );
   }));
-  dialog.showModal();
+  openModal(dialog);
   const first = dialog.querySelector('input');
   if (first) first.focus();
 }
@@ -1961,6 +1968,11 @@ function bindEvents() {
   });
   $('editSessionForm').addEventListener('submit', saveEditedSession);
   $('cancelEditSession').addEventListener('click', () => $('editSessionDialog').close());
+  document.querySelectorAll('dialog').forEach(dialog => {
+    dialog.addEventListener('click', event => {
+      if (event.target === dialog) dialog.close('cancel');
+    });
+  });
 
   addEventListener('hashchange', () => {
     if (currentUser) selectTab(tabFromHash());
