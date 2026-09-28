@@ -13,7 +13,10 @@ bloque siguiente.
   (`42,5` y `42.5` se guardan como la misma carga).
 - **Variantes de ejercicio**: los dos huecos de remo permiten elegir entre
   máquina de palanca, polea baja, remo de arriba y remo en T; la extensión de
-  hombro permite seleccionar ejecución bilateral o unilateral.
+  hombro permite seleccionar ejecución bilateral o unilateral. Cada variante
+  conserva su propia serie dentro del bloque correspondiente en Progresión. Al
+  cargar historiales anteriores, las sesiones personales de septiembre de 2026
+  se reclasifican automáticamente para eliminar los nombres genéricos.
 
 - **Varios atletas**: al abrir se elige quién entrena. Cada uno tiene su propio
   ciclo, borrador e historial. Se pueden añadir, renombrar y eliminar.

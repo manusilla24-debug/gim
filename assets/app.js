@@ -180,7 +180,45 @@ function normaliseLog(log) {
   if (!ROUTINE_BY_ID.has(clean.activeId)) clean.activeId = SPLIT[0].id;
   if (!ROUTINE_BY_ID.has(clean.nextId)) clean.nextId = clean.activeId;
   if (!Array.isArray(clean.sessions)) clean.sessions = [];
+  normaliseExerciseVariants(clean.sessions);
   return clean;
+}
+
+/* Reclasifica el historial personal anterior a los selectores de variantes.
+   Los IDs estables permiten que las sesiones nuevas se relacionen sin depender
+   del texto visible; las fechas conservan la clasificación indicada por Manuel. */
+function normaliseExerciseVariants(sessions) {
+  const rowing = {
+    '2026-09-04|Remo 1': ['b2', 'Remo de arriba'],
+    '2026-09-04|Remo 2': ['b3', 'Remo en T'],
+    '2026-09-10|Remo 1': ['b2', 'Remo en máquina de palanca'],
+    '2026-09-17|Remo 1': ['b2', 'Remo en máquina de palanca'],
+    '2026-09-17|Remo 2': ['b3', 'Remo en polea baja'],
+    '2026-09-22|Remo 1': ['b2', 'Remo en máquina de palanca'],
+    '2026-09-22|Remo 2': ['b3', 'Remo en polea baja'],
+    '2026-09-27|Remo 1': ['b2', 'Remo en máquina de palanca'],
+    '2026-09-27|Remo 2': ['b3', 'Remo en polea baja']
+  };
+  const unilateralShoulder = new Set(['2026-09-19', '2026-09-28']);
+  const rowNames = new Set(['Remo en máquina de palanca', 'Remo en polea baja', 'Remo de arriba', 'Remo en T']);
+
+  sessions.forEach(session => {
+    const day = String(session.iso || '').slice(0, 10);
+    (Array.isArray(session.entries) ? session.entries : []).forEach(entry => {
+      const row = rowing[day + '|' + entry.name];
+      if (row) {
+        entry.exerciseId = row[0];
+        entry.name = row[1];
+      } else if (entry.name === 'Extensión de hombro') {
+        entry.exerciseId = 'c3';
+        entry.name = 'Extensión de hombro ' + (unilateralShoulder.has(day) ? 'unilateral' : 'bilateral');
+      } else if (!entry.exerciseId && rowNames.has(entry.name)) {
+        entry.exerciseId = entry.name === 'Remo en máquina de palanca' || entry.name === 'Remo de arriba' ? 'b2' : 'b3';
+      } else if (!entry.exerciseId && /^Extensión de hombro (?:uni|bi)lateral$/.test(entry.name)) {
+        entry.exerciseId = 'c3';
+      }
+    });
+  });
 }
 
 function newUserId() {
@@ -1031,14 +1069,18 @@ function renderExerciseFilter() {
   const counts = trackedNames();
   const placed = new Set();
   const groups = SPLIT.map(routine => {
-    const options = exercisesOf(routine.id)
-      .filter(ex => ex.tracksLoad !== false)
-      .map(ex => {
-        placed.add(ex.name);
-        const n = counts.get(ex.name) || 0;
+    const names = [];
+    exercisesOf(routine.id).filter(ex => ex.tracksLoad !== false).forEach(exercise => {
+      (exercise.variants || [exercise.name]).forEach(name => {
+        if (!names.includes(name)) names.push(name);
+      });
+    });
+    const options = names.map(name => {
+        placed.add(name);
+        const n = counts.get(name) || 0;
         return el('option', {
-          value: ex.name,
-          text: ex.name + (n ? ' (' + n + ')' : ' — sin datos'),
+          value: name,
+          text: name + (n ? ' (' + n + ')' : ' — sin datos'),
           disabled: n === 0 ? true : null
         });
       });
