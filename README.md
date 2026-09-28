@@ -9,6 +9,11 @@ bloque siguiente.
   cargas y un mapa de constancia de las últimas 16 semanas.
 - **Ayuda durante la sesión**: cada ejercicio muestra la última referencia y
   un objetivo conservador; una nueva mejor carga recibe un aviso especial.
+- **Cargas decimales**: los campos aceptan tanto coma como punto en móvil
+  (`42,5` y `42.5` se guardan como la misma carga).
+- **Variantes de ejercicio**: los dos huecos de remo permiten elegir entre
+  máquina de palanca, polea baja, remo de arriba y remo en T; la extensión de
+  hombro permite seleccionar ejecución bilateral o unilateral.
 
 - **Varios atletas**: al abrir se elige quién entrena. Cada uno tiene su propio
   ciclo, borrador e historial. Se pueden añadir, renombrar y eliminar.

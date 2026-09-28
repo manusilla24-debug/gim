@@ -859,6 +859,8 @@ body {
   color: var(--muted);
 }
 .ex__last b { font-family: var(--font-mono); font-weight: 500; color: var(--ink-2); }
+.ex__variant { display: block; margin-top: 8px; }
+.ex__variant select { min-height: 36px; padding-block: 6px; font-size: 13px; font-weight: 500; }
 
 .ex__nameinput {
   width: 100%;
@@ -895,6 +897,11 @@ input[type="number"], input[type="text"], select, textarea {
   transition: border-color .12s, box-shadow .12s;
 }
 input[type="number"] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.input--decimal {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   text-align: right;

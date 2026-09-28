@@ -24,8 +24,16 @@ const SPLIT = [
     id: 'b', code: 'B', name: 'Espalda y bíceps', focus: 'Tracción',
     exercises: [
       { id: 'b1', name: 'Jalón al pecho' },
-      { id: 'b2', name: 'Remo 1' },
-      { id: 'b3', name: 'Remo 2' },
+      {
+        id: 'b2', name: 'Remo', legacyName: 'Remo 1', variantLabel: 'Tipo de remo 1',
+        variants: ['Remo en máquina de palanca', 'Remo en polea baja', 'Remo de arriba', 'Remo en T'],
+        defaultVariant: 'Remo en máquina de palanca'
+      },
+      {
+        id: 'b3', name: 'Remo', legacyName: 'Remo 2', variantLabel: 'Tipo de remo 2',
+        variants: ['Remo en máquina de palanca', 'Remo en polea baja', 'Remo de arriba', 'Remo en T'],
+        defaultVariant: 'Remo en polea baja'
+      },
       { id: 'b4', name: 'Curl de bíceps', equip: 'Barra Z' },
       { id: 'b5', name: 'Curl de bíceps martillo' }
     ]
@@ -36,7 +44,12 @@ const SPLIT = [
     exercises: [
       { id: 'c1', name: 'Press militar' },
       { id: 'c2', name: 'Elevaciones laterales' },
-      { id: 'c3', name: 'Extensión de hombro', equip: 'Polea' },
+      {
+        id: 'c3', name: 'Extensión de hombro', legacyName: 'Extensión de hombro', equip: 'Polea',
+        variantLabel: 'Modalidad de extensión de hombro',
+        variants: ['Extensión de hombro bilateral', 'Extensión de hombro unilateral'],
+        defaultVariant: 'Extensión de hombro bilateral'
+      },
       { id: 'c4', name: 'Abdominales', tracksLoad: false }
     ]
   }
@@ -330,6 +343,13 @@ function num(value) {
   return Number.isFinite(n) ? n : '';
 }
 
+function decimalText(value) {
+  let clean = String(value || '').replace(/[^0-9.,]/g, '');
+  const separator = clean.search(/[.,]/);
+  if (separator >= 0) clean = clean.slice(0, separator + 1) + clean.slice(separator + 1).replace(/[.,]/g, '');
+  return clean;
+}
+
 function draftOf(routineId, exerciseId) {
   const row = (state.draft[routineId] || {})[exerciseId];
   return row || { load: '', sets: '', reps: '', note: '' };
@@ -350,9 +370,18 @@ function exercisesOf(routineId) {
 }
 
 /* Última carga registrada para un ejercicio, para saber por dónde seguir. */
-function lastRecordOf(name) {
+function selectedExerciseName(exercise, values) {
+  if (!exercise.variants) return exercise.name;
+  return exercise.variants.includes(values && values.variant)
+    ? values.variant
+    : exercise.defaultVariant || exercise.variants[0];
+}
+
+function lastRecordOf(name, exerciseId, legacyName) {
   for (const session of state.sessions) {
-    const hit = session.entries.find(e => e.name === name && (num(e.load) > 0 || num(e.reps) > 0));
+    const hit = session.entries.find(e => ((e.exerciseId === exerciseId && (!legacyName || e.name === name))
+      || (!e.exerciseId && (e.name === name || e.name === legacyName)))
+      && (num(e.load) > 0 || num(e.reps) > 0));
     if (hit) return { record: hit, iso: session.iso };
   }
   return null;
@@ -391,11 +420,12 @@ function renderSplit() {
    reglas pequeñas, explicables y conservadoras de sobrecarga progresiva.
    ------------------------------------------------------------------------ */
 
-function coachHistory(routineId, exerciseName) {
+function coachHistory(routineId, exerciseName, exerciseId, legacyName) {
   const rows = [];
   for (const session of state.sessions) {
     if (session.routineId !== routineId) continue;
-    const entry = session.entries.find(item => item.name === exerciseName);
+    const entry = session.entries.find(item => (item.exerciseId === exerciseId && (!legacyName || item.name === exerciseName))
+      || (!item.exerciseId && (item.name === exerciseName || item.name === legacyName)));
     if (entry) rows.push({ entry, iso: session.iso });
   }
   return rows;
@@ -408,7 +438,9 @@ function samePerformance(a, b) {
 function buildCoachPlan() {
   const routine = ROUTINE_BY_ID.get(state.activeId);
   const rows = exercisesOf(routine.id).filter(exercise => (exercise.name || '').trim()).map(exercise => {
-    const historyRows = coachHistory(routine.id, exercise.name);
+    const valuesToday = draftOf(routine.id, exercise.id);
+    const exerciseName = selectedExerciseName(exercise, valuesToday);
+    const historyRows = coachHistory(routine.id, exerciseName, exercise.id, exercise.legacyName);
     const latest = historyRows[0] && historyRows[0].entry;
     const plateau = historyRows.length >= 3
       && samePerformance(historyRows[0].entry, historyRows[1].entry)
@@ -418,8 +450,8 @@ function buildCoachPlan() {
     if (!latest) {
       return {
         id: exercise.id,
-        name: exercise.name,
-        values: { load: '', sets: tracksLoad ? '3' : '', reps: '10', note: '' },
+        name: exerciseName,
+        values: { load: '', sets: tracksLoad ? '3' : '', reps: '10', note: '', variant: valuesToday.variant || exercise.defaultVariant || '' },
         plateau: false,
         reason: 'Sin historial: referencia inicial moderada; ajusta las repeticiones al ejercicio.'
       };
@@ -432,7 +464,8 @@ function buildCoachPlan() {
       load: load === '' ? '' : String(load),
       sets: sets === '' ? '' : String(sets),
       reps: reps === '' ? '' : String(reps),
-      note: ''
+      note: '',
+      variant: valuesToday.variant || exercise.defaultVariant || ''
     };
     let reason = 'Mantener la última referencia.';
 
@@ -450,7 +483,7 @@ function buildCoachPlan() {
         : 'Sobrecarga conservadora: misma carga y una repetición más.';
     }
 
-    return { id: exercise.id, name: exercise.name, values, plateau, reason };
+    return { id: exercise.id, name: exerciseName, values, plateau, reason };
   });
 
   return { routine, rows };
@@ -799,7 +832,8 @@ function renderLog() {
   const rows = exercisesOf(routineId).map((exercise, index) => {
     const values = draftOf(routineId, exercise.id);
     const tracksLoad = exercise.tracksLoad !== false;
-    const previous = lastRecordOf(exercise.name);
+    const exerciseName = selectedExerciseName(exercise, values);
+    const previous = lastRecordOf(exerciseName, exercise.id, exercise.legacyName);
     const plan = buildCoachPlan().rows.find(row => row.id === exercise.id);
     const inputId = suffix => 'f-' + routineId + '-' + exercise.id + '-' + suffix;
 
@@ -814,6 +848,17 @@ function renderLog() {
       : el('div', { class: 'ex__name' },
           el('span', { class: 'ex__title', text: exercise.name }),
           exercise.equip ? el('span', { class: 'ex__equip', text: exercise.equip }) : null,
+          exercise.variants ? el('label', { class: 'ex__variant' },
+            el('span', { class: 'sr', text: exercise.variantLabel }),
+            el('select', {
+              'aria-label': exercise.variantLabel,
+              dataset: { field: 'variant' }
+            }, exercise.variants.map(variant => el('option', {
+              value: variant,
+              text: variant.replace(exercise.name + ' ', ''),
+              selected: variant === exerciseName ? true : null
+            })))
+          ) : null,
           previous
             ? el('span', { class: 'ex__last' },
                 'Última: ',
@@ -831,7 +876,8 @@ function renderLog() {
           el('label', { class: 'field__label', for: inputId('load'), text: 'Carga' }),
           el('span', { class: 'field__box' },
             el('input', {
-              id: inputId('load'), type: 'number', inputmode: 'decimal', step: '2.5', min: '0',
+              id: inputId('load'), class: 'input--decimal', type: 'text', inputmode: 'decimal',
+              pattern: '[0-9]*[.,]?[0-9]*', autocomplete: 'off',
               value: values.load, placeholder: '—', dataset: { field: 'load' }
             }),
             el('span', { class: 'field__unit', text: 'kg', 'aria-hidden': 'true' })
@@ -1419,11 +1465,12 @@ async function completeSession() {
   for (const exercise of exercisesOf(routine.id)) {
     const values = draftOf(routine.id, exercise.id);
     const load = num(values.load), sets = num(values.sets), reps = num(values.reps);
-    const name = (exercise.name || '').trim();
+    const name = (selectedExerciseName(exercise, values) || '').trim();
     if (!name) continue;
     if (!(load > 0 || sets > 0 || reps > 0 || values.note)) continue;
     const repetitionsOnly = routine.id === 'c' && exercise.id === 'c4';
     entries.push({
+      exerciseId: exercise.id,
       name,
       equip: exercise.equip || '',
       load: repetitionsOnly ? '' : (load === '' ? '' : load),
@@ -1497,16 +1544,20 @@ async function repeatLast() {
     if (!ok) return;
   }
 
-  const byName = new Map(previous.entries.map(entry => [entry.name, entry]));
+  const unused = previous.entries.slice();
   const draft = {};
   for (const exercise of exercisesOf(routineId)) {
-    const hit = byName.get(exercise.name);
+    let hitIndex = unused.findIndex(entry => entry.exerciseId === exercise.id);
+    if (hitIndex < 0 && exercise.variants) hitIndex = unused.findIndex(entry => exercise.variants.includes(entry.name));
+    if (hitIndex < 0) hitIndex = unused.findIndex(entry => entry.name === exercise.name || entry.name === exercise.legacyName);
+    const hit = hitIndex >= 0 ? unused.splice(hitIndex, 1)[0] : null;
     if (!hit) continue;
     draft[exercise.id] = {
       load: hit.load === '' ? '' : String(hit.load),
       sets: hit.sets === '' ? '' : String(hit.sets),
       reps: hit.reps === '' ? '' : String(hit.reps),
-      note: ''    // las notas son de aquel día, no de hoy
+      note: '',    // las notas son de aquel día, no de hoy
+      variant: exercise.variants && exercise.variants.includes(hit.name) ? hit.name : (exercise.defaultVariant || '')
     };
   }
 
@@ -2019,12 +2070,20 @@ function bindEvents() {
     const row = event.target.closest('[data-ex]');
     if (!field || !row) return;
     if (field === 'name') renameExtra(row.dataset.ex, event.target.value);
-    else updateDraft(row.dataset.ex, field, event.target.value);
+    else {
+      if (field === 'load') event.target.value = decimalText(event.target.value);
+      updateDraft(row.dataset.ex, field, event.target.value);
+    }
   });
   rows.addEventListener('change', event => {
     const row = event.target.closest('[data-ex]');
     if (!row || !event.target.dataset.field) return;
-    const inputs = row.querySelectorAll('input[data-field]');
+    if (event.target.dataset.field === 'variant') {
+      updateDraft(row.dataset.ex, 'variant', event.target.value);
+      renderLog();
+      return;
+    }
+    const inputs = row.querySelectorAll('input[data-field], select[data-field]');
     const values = {};
     inputs.forEach(input => { values[input.dataset.field] = input.value; });
     const tracksLoad = !!row.querySelector('[data-field="load"]');
