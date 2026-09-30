@@ -21,7 +21,9 @@ bloque siguiente.
 - **Varios atletas**: al abrir se elige quién entrena. Cada uno tiene su propio
   ciclo, borrador e historial. Se pueden añadir, renombrar y eliminar.
 - **Progresión** por ejercicio: carga máxima de cada sesión, con mejor marca,
-  última carga y variación. El gráfico tiene su tabla equivalente.
+  última carga y variación. El gráfico tiene su tabla equivalente. Debajo se
+  pueden comparar hasta tres sesiones de un mismo bloque, ejercicio a ejercicio,
+  mediante tres líneas de carga y una tabla con cargas, series y repeticiones.
 - **Color por bloque**: pecho y tríceps usa naranja, espalda y bíceps azul, y
   hombro y abdomen verde mientras se registra cada entrenamiento.
 - **Calendario**: muestra los días entrenados con un círculo del color del bloque

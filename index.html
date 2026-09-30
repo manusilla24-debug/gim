@@ -283,6 +283,53 @@
         </figure>
 
         <dl class="tiles" id="progressTiles"></dl>
+
+        <section class="comparison" aria-labelledby="comparisonTitle">
+          <header class="panel-head comparison__head">
+            <div>
+              <p class="eyebrow">Rendimiento por entrenamiento</p>
+              <h2 class="panel-head__title" id="comparisonTitle">Comparar sesiones</h2>
+              <p class="panel-head__sub">Elige un bloque y hasta tres días para comparar los pesos ejercicio a ejercicio.</p>
+            </div>
+          </header>
+
+          <div class="comparison__filters">
+            <p class="field">
+              <label class="field__label" for="comparisonBlock">Bloque</label>
+              <select id="comparisonBlock">
+                <option value="a">Bloque A · Pecho y tríceps</option>
+                <option value="b">Bloque B · Espalda y bíceps</option>
+                <option value="c">Bloque C · Hombro y abdomen</option>
+              </select>
+            </p>
+            <p class="field">
+              <label class="field__label" for="comparisonSession1">Primer día</label>
+              <select id="comparisonSession1"></select>
+            </p>
+            <p class="field">
+              <label class="field__label" for="comparisonSession2">Segundo día</label>
+              <select id="comparisonSession2"></select>
+            </p>
+            <p class="field">
+              <label class="field__label" for="comparisonSession3">Tercer día</label>
+              <select id="comparisonSession3"></select>
+            </p>
+          </div>
+
+          <figure class="card">
+            <div class="card__head">
+              <div>
+                <h3 class="card__title" id="comparisonChartTitle">Comparación del bloque A</h3>
+                <figcaption class="card__sub" id="comparisonChartSub">Tres sesiones, tres líneas de carga.</figcaption>
+              </div>
+            </div>
+            <div class="card__body">
+              <div class="comparison-chart" id="comparisonChart"></div>
+              <div class="comparison-legend" id="comparisonLegend" aria-label="Sesiones comparadas"></div>
+              <div class="table-wrap comparison-table" id="comparisonTable"></div>
+            </div>
+          </figure>
+        </section>
       </section>
 
       <!-- Historial -->

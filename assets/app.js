@@ -81,6 +81,9 @@ let state = emptyLog();     // el registro del atleta activo
 let currentUser = null;
 let chartExercise = null;   // ejercicio seleccionado en Progresión
 let tableVisible = false;
+let comparisonRoutineId = SPLIT[0].id;
+let comparisonSessionIds = ['', '', ''];
+let comparisonNeedsDefaults = true;
 let managing = false;       // el selector, en modo gestión
 let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let coachPlan = null;       // propuesta efímera; el historial sigue siendo la fuente
@@ -356,6 +359,8 @@ function openUser(id) {
   state = store.logs[id];
   store.lastUserId = id;
   chartExercise = null;
+  comparisonSessionIds = ['', '', ''];
+  comparisonNeedsDefaults = true;
   try { sessionStorage.setItem(SESSION_KEY, id); } catch (e) { /* sin persistencia */ }
   saveNow();
   showApp();
@@ -1149,6 +1154,7 @@ function renderProgress() {
   drawChart(rows, name);
   renderChartTable(rows, name);
   renderTiles(rows, name);
+  renderComparison();
 }
 
 function renderTiles(rows, name) {
@@ -1397,6 +1403,191 @@ function chartSummary() {
   return 'Carga de ' + chartName + ' en ' + chartRows.length + ' sesiones: de '
     + kg(values[0]) + ' a ' + kg(values[values.length - 1])
     + ', máximo ' + kg(Math.max(...values)) + '. La tabla equivalente está bajo el botón «Ver tabla».';
+}
+
+/* --- Comparación de sesiones ------------------------------------------- */
+
+const COMPARISON = { height: 268, top: 26, right: 24, bottom: 38, left: 48 };
+let comparisonRows = [];
+let comparisonSessions = [];
+
+function comparisonSessionsFor(routineId) {
+  return state.sessions.filter(session => session.routineId === routineId);
+}
+
+function comparisonSessionLabel(session) {
+  return dateLong.format(new Date(session.iso)) + ' · ' + timeShort.format(new Date(session.iso));
+}
+
+function syncComparisonFilters() {
+  const sessions = comparisonSessionsFor(comparisonRoutineId);
+  const valid = new Set(sessions.map(session => session.id));
+  comparisonSessionIds = comparisonSessionIds.map((id, index) => {
+    if (valid.has(id)) return id;
+    return comparisonNeedsDefaults && sessions[index] ? sessions[index].id : '';
+  });
+  comparisonNeedsDefaults = false;
+
+  for (let index = 0; index < 3; index += 1) {
+    const select = $('comparisonSession' + (index + 1));
+    const options = [el('option', { value: '', text: sessions.length ? 'No comparar' : 'Sin sesiones en este bloque' })];
+    sessions.forEach(session => options.push(el('option', {
+      value: session.id,
+      text: comparisonSessionLabel(session)
+    })));
+    select.replaceChildren(...options);
+    select.value = comparisonSessionIds[index];
+    select.disabled = sessions.length === 0;
+  }
+}
+
+function comparisonData(sessions) {
+  const length = Math.max(0, ...sessions.map(session => session.entries.length));
+  return Array.from({ length }, (_, index) => {
+    const reference = sessions.map(session => session.entries[index]).find(Boolean);
+    return {
+      name: reference ? reference.name : 'Ejercicio ' + (index + 1),
+      values: sessions.map(session => {
+        const entry = session.entries[index];
+        if (!entry) return null;
+        const load = num(entry.load);
+        const reps = num(entry.reps);
+        return {
+          value: load > 0 ? load : reps,
+          unit: load > 0 ? 'kg' : 'reps',
+          load,
+          sets: num(entry.sets),
+          reps
+        };
+      })
+    };
+  });
+}
+
+function renderComparison() {
+  if (!ROUTINE_BY_ID.has(comparisonRoutineId)) comparisonRoutineId = SPLIT[0].id;
+  $('comparisonBlock').value = comparisonRoutineId;
+  syncComparisonFilters();
+
+  const byId = new Map(state.sessions.map(session => [session.id, session]));
+  comparisonSessions = comparisonSessionIds.map(id => byId.get(id)).filter(Boolean);
+  comparisonRows = comparisonData(comparisonSessions);
+  const routine = ROUTINE_BY_ID.get(comparisonRoutineId);
+
+  $('comparisonChartTitle').textContent = 'Comparación del bloque ' + routine.code;
+  $('comparisonChartSub').textContent = comparisonSessions.length
+    ? comparisonSessions.length + (comparisonSessions.length === 1 ? ' sesión elegida' : ' sesiones elegidas') + ' · peso por posición de ejercicio'
+    : 'Elige al menos una sesión para empezar a comparar.';
+
+  renderComparisonLegend();
+  paintComparisonChart();
+  renderComparisonTable();
+}
+
+function renderComparisonLegend() {
+  const host = $('comparisonLegend');
+  host.dataset.routine = comparisonRoutineId;
+  if (!comparisonSessions.length) { host.replaceChildren(); return; }
+  host.replaceChildren(...comparisonSessions.map((session, index) => el('span', { class: 'comparison-legend__item' },
+    el('i', { class: 'comparison-series comparison-series--' + (index + 1), 'aria-hidden': 'true' }),
+    dateShort.format(new Date(session.iso))
+  )));
+}
+
+function paintComparisonChart() {
+  const host = $('comparisonChart');
+  host.dataset.routine = comparisonRoutineId;
+  const rows = comparisonRows;
+  const loads = rows.flatMap(row => row.values.filter(item => item && item.load > 0).map(item => item.load));
+  if (!comparisonSessions.length || !rows.length) {
+    host.replaceChildren(el('div', { class: 'empty' },
+      el('p', { class: 'empty__title', text: comparisonSessions.length ? 'Sin valores para comparar' : 'Sin sesiones elegidas' }),
+      el('p', { text: comparisonSessions.length
+        ? 'Las sesiones elegidas no tienen pesos registrados.'
+        : 'Selecciona uno o más días en los desplegables superiores.' })
+    ));
+    return;
+  }
+
+  if (!loads.length) {
+    host.replaceChildren(el('div', { class: 'empty' },
+      el('p', { class: 'empty__title', text: 'Sin pesos para comparar' }),
+      el('p', { text: 'Los ejercicios sin carga siguen disponibles en la tabla inferior.' })
+    ));
+    return;
+  }
+
+  const width = Math.max(560, host.clientWidth || 720);
+  const height = COMPARISON.height;
+  const plotW = width - COMPARISON.left - COMPARISON.right;
+  const plotH = height - COMPARISON.top - COMPARISON.bottom;
+  const scale = niceScale(Math.min(...loads), Math.max(...loads), 4);
+  const x = index => COMPARISON.left + (rows.length === 1 ? plotW / 2 : (plotW * index) / (rows.length - 1));
+  const y = value => COMPARISON.top + plotH - ((value - scale.lo) / (scale.hi - scale.lo || 1)) * plotH;
+
+  const frame = svg('svg', {
+    viewBox: '0 0 ' + width + ' ' + height,
+    width,
+    height,
+    role: 'img',
+    'aria-label': 'Comparación de pesos de ' + comparisonSessions.length + ' sesiones del bloque ' + ROUTINE_BY_ID.get(comparisonRoutineId).code + '. Cada punto representa un ejercicio en el orden de la sesión. La tabla equivalente aparece debajo.'
+  });
+
+  scale.ticks.forEach(tick => {
+    frame.append(svg('line', { class: 'grid', x1: COMPARISON.left, x2: width - COMPARISON.right, y1: y(tick), y2: y(tick) }));
+    frame.append(svg('text', { class: 'axis-label', x: COMPARISON.left - 8, y: y(tick) + 4, 'text-anchor': 'end', text: nf1.format(tick) }));
+  });
+
+  rows.forEach((row, index) => {
+    frame.append(svg('text', {
+      class: 'axis-label', x: x(index), y: height - COMPARISON.bottom + 20, 'text-anchor': 'middle',
+      text: String(index + 1)
+    }));
+  });
+
+  comparisonSessions.forEach((session, sessionIndex) => {
+    const points = rows.map((row, rowIndex) => {
+      const item = row.values[sessionIndex];
+      return item && item.load > 0 ? { item, row, rowIndex } : null;
+    }).filter(Boolean);
+    if (points.length > 1) {
+      frame.append(svg('path', {
+        class: 'comparison-line comparison-line--' + (sessionIndex + 1),
+        d: points.map((point, index) => (index ? 'L' : 'M') + x(point.rowIndex) + ' ' + y(point.item.load)).join(' ')
+      }));
+    }
+    points.forEach(point => frame.append(svg('circle', {
+      class: 'comparison-dot comparison-dot--' + (sessionIndex + 1),
+      cx: x(point.rowIndex),
+      cy: y(point.item.load),
+      r: 4
+    }, svg('title', { text: 'Ejercicio ' + (point.rowIndex + 1) + ' · ' + dateShort.format(new Date(session.iso)) + ': ' + nf1.format(point.item.load) + ' kg' }))));
+  });
+  host.replaceChildren(frame);
+}
+
+function comparisonCell(item) {
+  if (!item) return '—';
+  if (item.load > 0) {
+    return nf1.format(item.load) + ' kg' + (item.sets > 0 && item.reps > 0 ? ' · ' + item.sets + '×' + item.reps : '');
+  }
+  return item.reps > 0 ? item.reps + ' reps' + (item.sets > 0 ? ' · ' + item.sets + ' series' : '') : '—';
+}
+
+function renderComparisonTable() {
+  const host = $('comparisonTable');
+  if (!comparisonSessions.length || !comparisonRows.length) { host.replaceChildren(); return; }
+  host.replaceChildren(el('table', {},
+    el('caption', { text: 'Detalle de las sesiones comparadas' }),
+    el('thead', {}, el('tr', {},
+      el('th', { scope: 'col', text: 'Ejercicio' }),
+      comparisonSessions.map(session => el('th', { scope: 'col', text: dateShort.format(new Date(session.iso)) }))
+    )),
+    el('tbody', {}, comparisonRows.map(row => el('tr', {},
+      el('th', { scope: 'row', text: row.name }),
+      row.values.map(item => el('td', { text: comparisonCell(item) }))
+    )))
+  ));
 }
 
 /* --- Avisos y confirmaciones -------------------------------------------- */
@@ -1756,6 +1947,8 @@ async function importData(file) {
     state = normaliseLog(incoming);
     store.logs[currentUser.id] = state;
     chartExercise = null;
+    comparisonSessionIds = ['', '', ''];
+    comparisonNeedsDefaults = true;
     saveNow();
     renderAll();
     toast('Copia restaurada');
@@ -1774,6 +1967,8 @@ async function resetData() {
   state = emptyLog();
   store.logs[currentUser.id] = state;
   chartExercise = null;
+  comparisonSessionIds = ['', '', ''];
+  comparisonNeedsDefaults = true;
   saveNow();
   renderAll();
   toast('Registro vacío');
@@ -2033,7 +2228,10 @@ function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   try { localStorage.setItem(THEME_KEY, theme); } catch (e) { /* sin persistencia */ }
   syncThemeButton();
-  if (!$('progreso').hidden) paintChart();
+  if (!$('progreso').hidden) {
+    paintChart();
+    paintComparisonChart();
+  }
 }
 
 /* --- Arranque ----------------------------------------------------------- */
@@ -2166,6 +2364,18 @@ function bindEvents() {
     renderProgress();
   });
   $('rangeFilter').addEventListener('change', renderProgress);
+  $('comparisonBlock').addEventListener('change', event => {
+    comparisonRoutineId = event.target.value;
+    comparisonSessionIds = ['', '', ''];
+    comparisonNeedsDefaults = true;
+    renderComparison();
+  });
+  for (let index = 0; index < 3; index += 1) {
+    $('comparisonSession' + (index + 1)).addEventListener('change', event => {
+      comparisonSessionIds[index] = event.target.value;
+      renderComparison();
+    });
+  }
   $('toggleTable').addEventListener('click', event => {
     tableVisible = !tableVisible;
     $('chartTable').hidden = !tableVisible;
@@ -2224,9 +2434,15 @@ function bindEvents() {
   let resizeTimer = null;
   const observer = new ResizeObserver(() => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { if (!$('progreso').hidden) paintChart(); }, 120);
+    resizeTimer = setTimeout(() => {
+      if (!$('progreso').hidden) {
+        paintChart();
+        paintComparisonChart();
+      }
+    }, 120);
   });
   observer.observe($('chart'));
+  observer.observe($('comparisonChart'));
 
   // Si el móvil se bloquea o se cierra la pestaña, no se pierde lo último.
   addEventListener('pagehide', () => { if (saveTimer) saveNow(); });
@@ -2237,7 +2453,10 @@ function bindEvents() {
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (document.documentElement.dataset.theme) return;
     syncThemeButton();
-    if (!$('progreso').hidden) paintChart();
+    if (!$('progreso').hidden) {
+      paintChart();
+      paintComparisonChart();
+    }
   });
 }
 

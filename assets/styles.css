@@ -1092,6 +1092,38 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .chart .crosshair { stroke: var(--line-strong); stroke-width: 1; }
 .chart .hit { cursor: crosshair; }
 
+/* Comparador de sesiones */
+.comparison { display: grid; gap: 18px; padding-top: 8px; border-top: 1px solid var(--line-strong); }
+.comparison__head { margin-top: 8px; }
+.comparison__filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.comparison__filters select { width: 100%; min-width: 0; }
+.comparison-chart { overflow-x: auto; }
+.comparison-chart svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.comparison-chart[data-routine="a"], .comparison-legend[data-routine="a"] { --comparison-base: var(--routine-a); }
+.comparison-chart[data-routine="b"], .comparison-legend[data-routine="b"] { --comparison-base: var(--routine-b); }
+.comparison-chart[data-routine="c"], .comparison-legend[data-routine="c"] { --comparison-base: var(--routine-c); }
+.comparison-line { fill: none; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
+.comparison-line--1 { stroke: var(--comparison-base); }
+.comparison-line--2 { stroke: color-mix(in srgb, var(--comparison-base) 68%, var(--ink)); }
+.comparison-line--3 { stroke: color-mix(in srgb, var(--comparison-base) 58%, var(--surface)); }
+.comparison-dot { stroke: var(--surface); stroke-width: 2; }
+.comparison-dot--1, .comparison-series--1 { fill: var(--comparison-base); background: var(--comparison-base); }
+.comparison-dot--2, .comparison-series--2 { fill: color-mix(in srgb, var(--comparison-base) 68%, var(--ink)); background: color-mix(in srgb, var(--comparison-base) 68%, var(--ink)); }
+.comparison-dot--3, .comparison-series--3 { fill: color-mix(in srgb, var(--comparison-base) 58%, var(--surface)); background: color-mix(in srgb, var(--comparison-base) 58%, var(--surface)); }
+.comparison-legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 12px; }
+.comparison-legend__item { display: inline-flex; align-items: center; gap: 7px; font: 500 12px/1 var(--font-mono); color: var(--ink-2); }
+.comparison-series { width: 13px; height: 13px; border-radius: 2px; }
+.comparison-table { margin-top: 18px; }
+.comparison-table th:first-child { text-align: left; }
+.comparison-table tbody th { font-weight: 500; }
+
+@media (max-width: 840px) {
+  .comparison__filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .comparison__filters { grid-template-columns: 1fr; }
+}
+
 /* Utilidades puntuales */
 .stat__value--sm { font-size: 17px; }
 .btn--compact { padding: 6px 9px; font-size: 13px; }
