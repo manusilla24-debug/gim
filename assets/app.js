@@ -1416,7 +1416,7 @@ function comparisonSessionsFor(routineId) {
 }
 
 function comparisonSessionLabel(session) {
-  return dateLong.format(new Date(session.iso)) + ' · ' + timeShort.format(new Date(session.iso));
+  return dateShort.format(new Date(session.iso)) + ' · ' + timeShort.format(new Date(session.iso));
 }
 
 function syncComparisonFilters() {
@@ -1517,13 +1517,17 @@ function paintComparisonChart() {
     return;
   }
 
-  const width = Math.max(560, host.clientWidth || 720);
-  const height = COMPARISON.height;
-  const plotW = width - COMPARISON.left - COMPARISON.right;
-  const plotH = height - COMPARISON.top - COMPARISON.bottom;
+  const compact = (host.clientWidth || 720) < 520;
+  const frameSize = compact
+    ? { height: 210, top: 18, right: 10, bottom: 30, left: 36 }
+    : COMPARISON;
+  const width = Math.max(compact ? 280 : 560, host.clientWidth || 720);
+  const height = frameSize.height;
+  const plotW = width - frameSize.left - frameSize.right;
+  const plotH = height - frameSize.top - frameSize.bottom;
   const scale = niceScale(Math.min(...loads), Math.max(...loads), 4);
-  const x = index => COMPARISON.left + (rows.length === 1 ? plotW / 2 : (plotW * index) / (rows.length - 1));
-  const y = value => COMPARISON.top + plotH - ((value - scale.lo) / (scale.hi - scale.lo || 1)) * plotH;
+  const x = index => frameSize.left + (rows.length === 1 ? plotW / 2 : (plotW * index) / (rows.length - 1));
+  const y = value => frameSize.top + plotH - ((value - scale.lo) / (scale.hi - scale.lo || 1)) * plotH;
 
   const frame = svg('svg', {
     viewBox: '0 0 ' + width + ' ' + height,
@@ -1534,13 +1538,13 @@ function paintComparisonChart() {
   });
 
   scale.ticks.forEach(tick => {
-    frame.append(svg('line', { class: 'grid', x1: COMPARISON.left, x2: width - COMPARISON.right, y1: y(tick), y2: y(tick) }));
-    frame.append(svg('text', { class: 'axis-label', x: COMPARISON.left - 8, y: y(tick) + 4, 'text-anchor': 'end', text: nf1.format(tick) }));
+    frame.append(svg('line', { class: 'grid', x1: frameSize.left, x2: width - frameSize.right, y1: y(tick), y2: y(tick) }));
+    frame.append(svg('text', { class: 'axis-label', x: frameSize.left - 7, y: y(tick) + 4, 'text-anchor': 'end', text: nf1.format(tick) }));
   });
 
   rows.forEach((row, index) => {
     frame.append(svg('text', {
-      class: 'axis-label', x: x(index), y: height - COMPARISON.bottom + 20, 'text-anchor': 'middle',
+      class: 'axis-label', x: x(index), y: height - frameSize.bottom + 18, 'text-anchor': 'middle',
       text: String(index + 1)
     }));
   });

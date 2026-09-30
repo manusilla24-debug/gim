@@ -1067,8 +1067,8 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .chart__tip-key { width: 14px; height: 2px; background: var(--accent); flex: 0 0 auto; }
 
 /* Interior del gráfico (SVG): los colores salen de los mismos tokens) */
-.chart .grid { stroke: var(--grid); stroke-width: 1; }
-.chart .axis-label {
+.chart .grid, .comparison-chart .grid { stroke: var(--grid); stroke-width: 1; }
+.chart .axis-label, .comparison-chart .axis-label {
   fill: var(--muted);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1097,8 +1097,8 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .comparison__head { margin-top: 8px; }
 .comparison__filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .comparison__filters select { width: 100%; min-width: 0; }
-.comparison-chart { overflow-x: auto; }
-.comparison-chart svg { display: block; width: 100%; min-width: 560px; height: auto; }
+.comparison-chart { overflow: hidden; }
+.comparison-chart svg { display: block; width: 100%; height: auto; }
 .comparison-chart[data-routine="a"], .comparison-legend[data-routine="a"] { --comparison-base: var(--routine-a); }
 .comparison-chart[data-routine="b"], .comparison-legend[data-routine="b"] { --comparison-base: var(--routine-b); }
 .comparison-chart[data-routine="c"], .comparison-legend[data-routine="c"] { --comparison-base: var(--routine-c); }
@@ -1121,7 +1121,24 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
   .comparison__filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 520px) {
-  .comparison__filters { grid-template-columns: 1fr; }
+  .comparison { gap: 12px; padding-top: 4px; }
+  .comparison__head { margin-top: 4px; }
+  .comparison__filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .comparison__filters .field { gap: 3px; }
+  .comparison__filters select { min-height: 42px; padding: 5px 8px; font-size: 14px; }
+  .comparison .card__head { padding: 10px 11px; }
+  .comparison .card__body { padding: 9px; }
+  .comparison-line { stroke-width: 1.8; }
+  .comparison-dot { r: 3px; stroke-width: 1.5; }
+  .comparison-chart .axis-label { font-size: 9px; }
+  .comparison-legend { gap: 7px 12px; margin-top: 7px; }
+  .comparison-legend__item { gap: 5px; font-size: 10px; }
+  .comparison-series { width: 10px; height: 10px; }
+  .comparison-table { margin-top: 10px; }
+  .comparison-table table { font-size: 11px; table-layout: fixed; }
+  .comparison-table caption { padding-bottom: 6px; font-size: 11px; }
+  .comparison-table th, .comparison-table td { padding: 5px 3px; line-height: 1.25; }
+  .comparison-table th:first-child { width: 34%; }
 }
 
 /* Utilidades puntuales */
