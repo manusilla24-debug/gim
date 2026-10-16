@@ -50,7 +50,7 @@ const SPLIT = [
         variants: ['Extensión de hombro bilateral', 'Extensión de hombro unilateral'],
         defaultVariant: 'Extensión de hombro bilateral'
       },
-      { id: 'c4', name: 'Abdominales', tracksLoad: false }
+      { id: 'c4', name: 'Abdominales', tracksLoad: false, tracksSetsOnly: true }
     ]
   }
 ];
@@ -424,7 +424,7 @@ function lastRecordOf(name, exerciseId, legacyName) {
   for (const session of state.sessions) {
     const hit = session.entries.find(e => ((e.exerciseId === exerciseId && (!legacyName || e.name === name))
       || (!e.exerciseId && (e.name === name || e.name === legacyName)))
-      && (num(e.load) > 0 || num(e.reps) > 0));
+      && (num(e.load) > 0 || num(e.reps) > 0 || num(e.sets) > 0));
     if (hit) return { record: hit, iso: session.iso };
   }
   return null;
@@ -489,6 +489,15 @@ function buildCoachPlan() {
       && samePerformance(historyRows[0].entry, historyRows[1].entry)
       && samePerformance(historyRows[1].entry, historyRows[2].entry);
     const tracksLoad = exercise.tracksLoad !== false;
+
+    if (exercise.tracksSetsOnly) {
+      return {
+        id: exercise.id, name: exerciseName,
+        values: { load: '', sets: latest && num(latest.sets) > 0 ? String(latest.sets) : '3', reps: '', note: '' },
+        plateau: false,
+        reason: 'Mantener las series de abdominales; anota los detalles en las notas.'
+      };
+    }
 
     if (!latest) {
       return {
@@ -754,6 +763,8 @@ function renderHome() {
   renderActivity();
 }
 
+let activityTimer = null;
+
 function renderActivity() {
   const host = $('activityHeatmap');
   const byDay = new Map();
@@ -767,7 +778,12 @@ function renderActivity() {
   start.setDate(start.getDate() - 111);
   const values = [...byDay.values()].filter(Boolean);
   const max = Math.max(...values, 1);
-  const cells = [];
+  const weekdays = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+  const cells = Array.from({ length: 7 }, (_, index) => el('span', {
+    class: 'activity__day',
+    text: weekdays[(start.getDay() + index) % 7],
+    'aria-hidden': 'true'
+  }));
   let trained = 0;
   for (let index = 0; index < 112; index += 1) {
     const day = new Date(start);
@@ -782,8 +798,14 @@ function renderActivity() {
     }));
   }
   host.replaceChildren(...cells);
-  host.setAttribute('aria-label', trained + (trained === 1 ? ' día entrenado' : ' días entrenados') + ' durante las últimas 16 semanas');
+  host.setAttribute('aria-label', trained + (trained === 1 ? ' día entrenado' : ' días entrenados')
+    + ' durante las últimas 16 semanas. Las filas siguen los días de la semana; la última corresponde a hoy, '
+    + new Intl.DateTimeFormat('es-ES', { weekday: 'long' }).format(end) + '.');
   $('activityTotal').textContent = trained + (trained === 1 ? ' día activo' : ' días activos');
+  const midnight = new Date(end);
+  midnight.setHours(24, 0, 0, 0);
+  clearTimeout(activityTimer);
+  activityTimer = setTimeout(() => { if (currentUser) renderActivity(); }, midnight.getTime() - Date.now());
 }
 
 /* --- Calendario -------------------------------------------------------- */
@@ -875,6 +897,7 @@ function renderLog() {
   const rows = exercisesOf(routineId).map((exercise, index) => {
     const values = draftOf(routineId, exercise.id);
     const tracksLoad = exercise.tracksLoad !== false;
+    const setsOnly = exercise.tracksSetsOnly === true;
     const exerciseName = selectedExerciseName(exercise, values);
     const previous = lastRecordOf(exerciseName, exercise.id, exercise.legacyName);
     const plan = buildCoachPlan().rows.find(row => row.id === exercise.id);
@@ -905,12 +928,12 @@ function renderLog() {
           previous
             ? el('span', { class: 'ex__last' },
                 'Última: ',
-                el('b', { text: previousLabel(previous.record, tracksLoad) }),
+                el('b', { text: previousLabel(previous.record, tracksLoad, setsOnly) }),
                 ' · ' + relativeDay(previous.iso))
             : el('span', { class: 'ex__last', text: 'Sin registro previo' }),
           plan ? el('span', { class: 'ex__target' },
             el('span', { text: 'Objetivo' }),
-            el('b', { text: previousLabel(plan.values, tracksLoad) })
+            el('b', { text: previousLabel(plan.values, tracksLoad, setsOnly) })
           ) : null
         );
 
@@ -932,13 +955,13 @@ function renderLog() {
         );
 
     return el('li', {
-      class: 'ex' + (isRowDone(values, tracksLoad) ? ' ex--done' : ''),
+      class: 'ex' + (setsOnly ? ' ex--sets-only' : '') + (isRowDone(values, tracksLoad, setsOnly) ? ' ex--done' : ''),
       dataset: { ex: exercise.id }
     },
       el('span', { class: 'ex__num', text: pad2(index + 1), 'aria-hidden': 'true' }),
       nameBlock,
       el('div', { class: 'ex__fields' },
-        loadField,
+        setsOnly ? null : loadField,
         el('p', { class: 'field' },
           el('label', { class: 'field__label', for: inputId('sets'), text: 'Series' }),
           el('input', {
@@ -946,7 +969,7 @@ function renderLog() {
             value: values.sets, placeholder: '—', dataset: { field: 'sets' }
           })
         ),
-        el('p', { class: 'field' },
+        setsOnly ? null : el('p', { class: 'field' },
           el('label', { class: 'field__label', for: inputId('reps'), text: 'Reps' }),
           el('input', {
             id: inputId('reps'), type: 'number', inputmode: 'numeric', step: '1', min: '0',
@@ -955,7 +978,7 @@ function renderLog() {
         )
       ),
       el('p', { class: 'field ex__note' },
-        el('label', { class: 'field__label', for: inputId('note'), text: 'Nota' }),
+        el('label', { class: 'field__label', for: inputId('note'), text: setsOnly ? 'Notas' : 'Nota' }),
         el('input', {
           id: inputId('note'), type: 'text', value: values.note,
           placeholder: 'Sensaciones, ajustes…', dataset: { field: 'note' }
@@ -979,7 +1002,8 @@ function renderLog() {
   $('logRows').replaceChildren(...rows);
 }
 
-function previousLabel(record, tracksLoad) {
+function previousLabel(record, tracksLoad, setsOnly = false) {
+  if (setsOnly && num(record.sets) > 0) return num(record.sets) + ' series';
   const parts = [];
   if (tracksLoad && num(record.load) > 0) parts.push(kg(num(record.load)));
   const sets = num(record.sets), reps = num(record.reps);
@@ -988,8 +1012,9 @@ function previousLabel(record, tracksLoad) {
   return parts.join(' · ') || '—';
 }
 
-function isRowDone(values, tracksLoad) {
+function isRowDone(values, tracksLoad, setsOnly = false) {
   const sets = num(values.sets), reps = num(values.reps);
+  if (setsOnly) return sets > 0;
   if (!(sets > 0 && reps > 0)) return false;
   return tracksLoad ? num(values.load) > 0 : true;
 }
@@ -1452,9 +1477,10 @@ function comparisonData(sessions) {
         if (!entry) return null;
         const load = num(entry.load);
         const reps = num(entry.reps);
+        const setsOnly = isAbdominalEntry(session, entry) && num(entry.sets) > 0;
         return {
-          value: load > 0 ? load : reps,
-          unit: load > 0 ? 'kg' : 'reps',
+          value: setsOnly ? num(entry.sets) : (load > 0 ? load : reps),
+          unit: setsOnly ? 'series' : (load > 0 ? 'kg' : 'reps'),
           load,
           sets: num(entry.sets),
           reps
@@ -1575,7 +1601,8 @@ function comparisonCell(item) {
   if (item.load > 0) {
     return nf1.format(item.load) + ' kg' + (item.sets > 0 && item.reps > 0 ? ' · ' + item.sets + '×' + item.reps : '');
   }
-  return item.reps > 0 ? item.reps + ' reps' + (item.sets > 0 ? ' · ' + item.sets + ' series' : '') : '—';
+  return item.reps > 0 ? item.reps + ' reps' + (item.sets > 0 ? ' · ' + item.sets + ' series' : '')
+    : (item.sets > 0 ? item.sets + ' series' : '—');
 }
 
 function renderComparisonTable() {
@@ -1703,16 +1730,16 @@ async function completeSession() {
     const values = draftOf(routine.id, exercise.id);
     const load = num(values.load), sets = num(values.sets), reps = num(values.reps);
     const name = (selectedExerciseName(exercise, values) || '').trim();
+    const setsOnly = exercise.tracksSetsOnly === true;
     if (!name) continue;
-    if (!(load > 0 || sets > 0 || reps > 0 || values.note)) continue;
-    const repetitionsOnly = routine.id === 'c' && exercise.id === 'c4';
+    if (!(sets > 0 || values.note || (!setsOnly && (load > 0 || reps > 0)))) continue;
     entries.push({
       exerciseId: exercise.id,
       name,
       equip: exercise.equip || '',
-      load: repetitionsOnly ? '' : (load === '' ? '' : load),
-      sets: repetitionsOnly ? '' : (sets === '' ? '' : sets),
-      reps: reps === '' ? '' : reps,
+      load: setsOnly ? '' : (load === '' ? '' : load),
+      sets: sets === '' ? '' : sets,
+      reps: setsOnly ? '' : (reps === '' ? '' : reps),
       note: String(values.note || '').trim()
     });
   }
@@ -1847,13 +1874,13 @@ function editSession(id) {
   dialog.dataset.sessionId = id;
   $('editSessionText').textContent = session.name + ' · ' + dateShort.format(new Date(session.iso));
   $('editSessionEntries').replaceChildren(...session.entries.map((entry, index) => {
-    const repetitionsOnly = isAbdominalEntry(session, entry);
+    const setsOnly = isAbdominalEntry(session, entry);
     return el('fieldset', { class: 'edit-session__entry', dataset: { editEntry: String(index) } },
       el('legend', { class: 'edit-session__name', text: entry.name }),
       el('div', { class: 'edit-session__fields' },
-        repetitionsOnly ? null : editNumberField('Carga (kg)', 'load', entry.load),
-        repetitionsOnly ? null : editNumberField('Series', 'sets', entry.sets),
-        editNumberField('Repeticiones', 'reps', entry.reps),
+        setsOnly ? null : editNumberField('Carga (kg)', 'load', entry.load),
+        editNumberField('Series', 'sets', entry.sets),
+        setsOnly ? null : editNumberField('Repeticiones', 'reps', entry.reps),
         el('label', { class: 'field edit-session__note' },
           el('span', { class: 'field__label', text: 'Nota' }),
           el('input', { type: 'text', value: entry.note || '', dataset: { editField: 'note' } })
@@ -1880,7 +1907,6 @@ function saveEditedSession(event) {
     });
     if (isAbdominalEntry(session, entry)) {
       entry.load = '';
-      entry.sets = '';
     }
   });
   session.volume = volumeOf(session.entries);
@@ -2144,6 +2170,8 @@ function isAbdominalEntry(session, entry) {
 
 function historyEntryLabel(session, entry) {
   if (isAbdominalEntry(session, entry)) {
+    const sets = num(entry.sets);
+    if (sets > 0) return sets + ' series';
     const reps = num(entry.reps);
     return reps > 0 ? reps + ' reps' : '—';
   }
@@ -2331,7 +2359,7 @@ function bindEvents() {
     const values = {};
     inputs.forEach(input => { values[input.dataset.field] = input.value; });
     const tracksLoad = !!row.querySelector('[data-field="load"]');
-    row.classList.toggle('ex--done', isRowDone(values, tracksLoad));
+    row.classList.toggle('ex--done', isRowDone(values, tracksLoad, row.classList.contains('ex--sets-only')));
   });
   rows.addEventListener('click', event => {
     const button = event.target.closest('[data-remove]');
@@ -2452,6 +2480,7 @@ function bindEvents() {
   addEventListener('pagehide', () => { if (saveTimer) saveNow(); });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden && saveTimer) saveNow();
+    if (!document.hidden && currentUser) renderActivity();
   });
 
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {

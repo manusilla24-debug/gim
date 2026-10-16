@@ -375,7 +375,8 @@ body {
 .empty--compact { padding: 14px 0; }
 .activity__total { font: 600 12px/1 var(--font-mono); color: var(--muted); white-space: nowrap; }
 .activity-wrap { overflow-x: auto; }
-.activity { display: grid; grid-template-rows: repeat(7, 12px); grid-auto-flow: column; grid-auto-columns: 12px; gap: 5px; min-width: 267px; width: max-content; }
+.activity { display: grid; grid-template-rows: repeat(7, 12px); grid-auto-flow: column; grid-auto-columns: 12px; gap: 5px; min-width: 284px; width: max-content; }
+.activity__day { display: grid; place-items: center; font-size: 10px; line-height: 12px; font-weight: 600; color: var(--muted); }
 .activity__cell { border-radius: 3px; background: var(--line); }
 .activity__cell--1 { background: color-mix(in srgb, var(--accent) 25%, var(--surface)); }
 .activity__cell--2 { background: color-mix(in srgb, var(--accent) 48%, var(--surface)); }
@@ -1000,8 +1001,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .log__tools .btn--add { flex: 1 1 240px; width: auto; }
 
 .actionbar {
-  position: sticky;
-  bottom: 0;
+  position: static;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -1767,7 +1767,7 @@ dialog::backdrop {
   .btn, .btn--add { border-radius: 999px; min-height: 46px; font-size: 14px; letter-spacing: -.01em; }
   .btn--primary { box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 5px 16px var(--accent-wash); }
   .btn--outline, .btn--add { background: var(--glass); border: 1px solid var(--line); }
-  .actionbar { bottom: 10px; padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px)); margin-top: 4px; border: 1px solid var(--glass-edge); border-radius: 24px; background: var(--glass); box-shadow: var(--glass-shadow); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+  .actionbar { padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px)); margin-top: 4px; border: 1px solid var(--glass-edge); border-radius: 24px; background: var(--glass); box-shadow: var(--glass-shadow); }
   .tile { background: transparent; }
   .tiles { gap: 0; border: 1px solid var(--glass-edge); }
   .tile + .tile { border-left: 1px solid var(--line); }
@@ -1841,3 +1841,11 @@ dialog::backdrop {
     .tab[aria-selected="true"], .split__btn[aria-pressed="true"] { outline: 2px solid Highlight; }
   }
 }
+
+/* Abdominales: una columna de series seguida de notas, en todos los anchos. */
+.ex--sets-only { grid-template-columns: 34px minmax(0, 1fr) 34px; }
+.ex--sets-only .ex__name { grid-column: 2; }
+.ex--sets-only .ex__tools { grid-column: 3; grid-row: 1; }
+.ex--sets-only .ex__fields { display: grid; grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); }
+.ex--sets-only .ex__note { grid-column: 1 / -1; }
+.log .ex--sets-only .field__label { display: block; }

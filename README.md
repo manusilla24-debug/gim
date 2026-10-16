@@ -24,7 +24,8 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
 ## Funciones
 
 - **Inicio personal**: próximo bloque, actividad reciente, mejores
-  cargas y un mapa de constancia de las últimas 16 semanas.
+  cargas y un mapa de constancia de las últimas 16 semanas. Las letras de los
+  días acompañan a cada fila y rotan para que hoy siempre quede abajo.
 - **Ayuda durante la sesión**: cada ejercicio muestra la última referencia y
   un objetivo conservador; una nueva mejor carga recibe un aviso especial.
 - **Cargas decimales**: los campos aceptan tanto coma como punto en móvil
@@ -48,7 +49,10 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   realizado; permite consultar también meses anteriores.
 - **Historial** completo con el tonelaje (carga × series × repeticiones) de cada
   sesión. Las sesiones cerradas se pueden corregir desde el botón del lápiz;
-  los abdominales se conservan en el historial únicamente como repeticiones.
+  los abdominales se anotan con series y notas, sin campos de carga ni
+  repeticiones. Los registros antiguos conservan sus repeticiones originales.
+- **Controles al final del registro**: terminar, guardar y vaciar quedan debajo
+  de los ejercicios, sin flotar sobre los campos al desplazarse.
 - **Resumen directo** con el número de sesiones y la última actividad realizada.
 - **Copiar la última sesión** del bloque para partir de lo que ya se hizo.
 - **Entrenador local**: planifica el bloque del día a partir de las últimas
