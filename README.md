@@ -5,6 +5,24 @@ tracción, hombro y abdomen). Se anota la carga, las series y las repeticiones d
 cada ejercicio; al cerrar la sesión pasa al historial y el registro avanza al
 bloque siguiente.
 
+## Diseño visual
+
+Interfaz inspirada en Liquid Glass de iOS: superficies translúcidas, reflejos
+suaves, tarjetas y controles redondeados, temas claro y oscuro y emojis puntuales
+en Inicio. Usa tipografía del sistema (la de Apple en iPhone), sin descargar
+fuentes. Mantiene las funciones, el formato de datos y el uso sin conexión.
+El tema oscuro utiliza fondo negro puro y superficies de cristal gris neutro.
+El desenfoque se limita a cabecera, selector de atleta y barra de acciones;
+sin soporte de `backdrop-filter` se conserva el fondo tintado y legible.
+Respeta las preferencias de movimiento reducido y transparencia reducida.
+
+Referencias visuales de código abierto consultadas:
+[simple-liquid-glass](https://github.com/lucaperullo/simple-liquid-glass) y
+[liquid-glass](https://github.com/dpawlikowski/liquid-glass). La implementación
+es CSS propio; no incorpora código ni dependencias de estos proyectos.
+
+## Funciones
+
 - **Inicio personal**: próximo bloque, actividad reciente, mejores
   cargas y un mapa de constancia de las últimas 16 semanas.
 - **Ayuda durante la sesión**: cada ejercicio muestra la última referencia y

@@ -6,8 +6,8 @@
 <title>Registro de Fuerza</title>
 <meta name="description" content="Registro de entrenamiento de fuerza: carga, series y repeticiones sesión a sesión, con progresión por ejercicio e historial completo.">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#F4F6F7" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#161A1D" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F0F3F8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Gim">
@@ -15,9 +15,6 @@
 <link rel="icon" href="/assets/icon-192.png" sizes="192x192" type="image/png">
 <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <link rel="manifest" href="/assets/manifest.webmanifest">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/assets/styles.css">
 <script src="/assets/boot.js"></script>
 </head>
@@ -149,6 +146,7 @@
       <section class="panel home" id="inicio" role="tabpanel" aria-labelledby="tab-inicio" tabindex="0">
         <div class="home-hero">
           <div class="home-hero__copy">
+            <span class="hero-emoji" aria-hidden="true">💪</span>
             <p class="eyebrow" id="homeEyebrow">Tu próximo entrenamiento</p>
             <h2 class="home-hero__title" id="homeTitle">Listo para entrenar</h2>
             <p class="home-hero__sub" id="homeSub"></p>
@@ -167,7 +165,7 @@
             <div class="card__head">
               <div>
                 <p class="eyebrow">Última sesión</p>
-                <h3 class="card__title" id="homeRecentTitle">Tu referencia</h3>
+                <h3 class="card__title" id="homeRecentTitle"><span aria-hidden="true">🗓️ </span>Tu referencia</h3>
               </div>
             </div>
             <div class="card__body" id="homeRecent"></div>
@@ -177,7 +175,7 @@
             <div class="card__head">
               <div>
                 <p class="eyebrow">Mejores marcas</p>
-                <h3 class="card__title" id="homeBestTitle">Récords personales</h3>
+                <h3 class="card__title" id="homeBestTitle"><span aria-hidden="true">🏆 </span>Récords personales</h3>
               </div>
             </div>
             <div class="card__body" id="homeBests"></div>
