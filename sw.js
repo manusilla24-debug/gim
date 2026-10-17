@@ -1,7 +1,7 @@
 /* Service worker: deja la aplicación utilizable sin conexión.
    Al cambiar archivos, sube VERSION para que se renueve la caché. */
 
-const VERSION = 'gim-2026-10-16-dias-series-controles';
+const VERSION = 'gim-2026-10-17-publicacion-dias-series';
 const FONTS = 'gim-fuentes-1';
 
 const SHELL = [
@@ -22,7 +22,7 @@ const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(VERSION)
-      .then(cache => cache.addAll(SHELL))
+      .then(cache => cache.addAll(SHELL.map(path => new Request(path, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
@@ -60,12 +60,12 @@ self.addEventListener('fetch', event => {
   if (url.origin !== self.location.origin) return;
 
   // Todo lo propio va primero a la red y cae en la caché si no hay conexión.
-  // Son cuatro archivos pequeños: así nunca se sirve una versión vieja y el
-  // modo sin conexión sigue funcionando.
+  // Evita reutilizar respuestas de la caché HTTP al renovar el shell.
+  // La caché propia mantiene el funcionamiento cuando falla la conexión.
   const fallback = request.mode === 'navigate' ? '/index.html' : request;
 
   event.respondWith(
-    fetch(request)
+    fetch(request, { cache: 'no-store' })
       .then(response => {
         if (response.ok) {
           const copy = response.clone();

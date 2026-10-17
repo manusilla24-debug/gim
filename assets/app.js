@@ -2235,9 +2235,9 @@ function setupInstall() {
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   const hadController = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.register('/sw.js').catch(() => { /* sin modo sin conexión */ });
+  navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => { /* sin modo sin conexión */ });
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (hadController) toast('Actualizada a la última versión');
+    if (hadController) toast('Nueva versión disponible. Recarga para aplicarla; tu borrador se conserva.');
   });
 }
 

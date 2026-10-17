@@ -127,6 +127,13 @@ npx vercel --prod
 `vercel link` es el paso que crea el vínculo con la cuenta y escribe `.vercel/`
 (ignorado por git).
 
+Después de subir a GitHub, comprueba también el despliegue de **Production** en
+Vercel: un `git push` correcto no confirma que la web pública se haya actualizado.
+El `VERSION` de `/sw.js` en la URL de producción debe coincidir con el del
+repositorio. El shell evita la caché HTTP al actualizarse y conserva su caché
+offline. Si la aplicación ya estaba abierta, recarga tras el aviso de nueva
+versión; el borrador se guarda antes de salir.
+
 ## Datos anteriores
 
 La primera versión guardaba en la clave `gymData` de `localStorage`, y la
