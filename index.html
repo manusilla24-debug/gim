@@ -337,18 +337,16 @@
             <p class="eyebrow" id="historyCount">Sin sesiones</p>
             <div class="history-title-row">
               <h2 class="panel-head__title">Historial</h2>
-              <details id="historySort" class="history-sort">
-                <summary class="iconbtn history-sort__toggle" id="historySortToggle" role="button" aria-label="Ordenar historial" title="Ordenar por" aria-expanded="false" aria-controls="historySortOptions">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 19V5m-4 4 4-4 4 4M16 5v14m-4-4 4 4 4-4"></path></svg>
-                </summary>
-                <div class="history-sort__options" id="historySortOptions" role="group" aria-label="Ordenar por">
-                  <button type="button" data-history-order="newest" aria-pressed="true">Fecha más reciente</button>
-                  <button type="button" data-history-order="oldest" aria-pressed="false">Fecha más antigua</button>
-                  <button type="button" data-history-order="a" aria-pressed="false">Por bloque A</button>
-                  <button type="button" data-history-order="b" aria-pressed="false">Por bloque B</button>
-                  <button type="button" data-history-order="c" aria-pressed="false">Por bloque C</button>
-                </div>
-              </details>
+              <div class="history-sort">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 19V5m-4 4 4-4 4 4M16 5v14m-4-4 4 4 4-4"></path></svg>
+                <select id="historySort" aria-label="Ordenar historial" title="Ordenar por">
+                  <option value="newest">Fecha más reciente</option>
+                  <option value="oldest">Fecha más antigua</option>
+                  <option value="a">Por bloque A</option>
+                  <option value="b">Por bloque B</option>
+                  <option value="c">Por bloque C</option>
+                </select>
+              </div>
             </div>
             <p class="panel-head__sub" id="historyDescription" aria-live="polite">Todas las sesiones, de la más reciente a la más antigua.</p>
           </div>

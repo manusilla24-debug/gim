@@ -1851,46 +1851,39 @@ dialog::backdrop {
 .log .ex--sets-only .field__label { display: block; }
 
 /* Orden y consulta por bloque del historial. */
-.history-title-row { position: relative; display: flex; align-items: center; gap: 12px; width: fit-content; max-width: 100%; }
+.history-title-row { display: flex; align-items: center; gap: 12px; width: fit-content; max-width: 100%; }
 .history-title-row .panel-head__title { margin-top: 0; }
-.history-sort .history-sort__toggle { width: 44px; height: 44px; border-radius: var(--radius); background: var(--raised); list-style: none; }
-.history-sort__toggle::-webkit-details-marker { display: none; }
-.history-sort[open] .history-sort__toggle { border-color: var(--ink); color: var(--ink); }
-.history-sort__toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.history-sort__options {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 30;
-  display: grid;
-  width: min(280px, calc(100vw - 2 * var(--gutter)));
-  padding: 6px;
-  border: 1px solid var(--line-strong);
+.history-sort {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--raised);
-  box-shadow: var(--shadow);
+  color: var(--ink-2);
 }
-.history-sort__options button {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 44px;
-  padding: 10px 12px;
+.history-sort svg { width: 20px; height: 20px; pointer-events: none; }
+/* El toque llega al select real, también en iOS; el icono solo lo representa. */
+.history-sort select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
   border: 0;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  font-size: 14px;
-  text-align: left;
+  opacity: 0;
+  font-size: 16px;
   cursor: pointer;
 }
-.history-sort__options button:hover { background: var(--surface); }
-.history-sort__options button[aria-pressed="true"] { background: var(--surface); font-weight: 700; }
-.history-sort__options button[aria-pressed="true"]::after { content: '✓'; }
+.history-sort:hover { border-color: var(--line-strong); color: var(--ink); }
+.history-sort:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; }
 @supports ((-webkit-backdrop-filter: blur(20px)) or (backdrop-filter: blur(20px))) {
-  .history-sort .history-sort__toggle, .history-sort__options {
+  .history-sort {
     background: var(--glass, var(--raised));
     -webkit-backdrop-filter: blur(20px) saturate(150%);
     backdrop-filter: blur(20px) saturate(150%);
@@ -1898,7 +1891,7 @@ dialog::backdrop {
   }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .history-sort .history-sort__toggle, .history-sort__options {
+  .history-sort {
     background: var(--raised);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;

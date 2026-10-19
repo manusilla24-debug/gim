@@ -361,7 +361,6 @@ function openUser(id) {
   store.lastUserId = id;
   chartExercise = null;
   historyOrder = 'newest';
-  setHistorySortOpen(false);
   comparisonSessionIds = ['', '', ''];
   comparisonNeedsDefaults = true;
   try { sessionStorage.setItem(SESSION_KEY, id); } catch (e) { /* sin persistencia */ }
@@ -1037,12 +1036,6 @@ function historySessions(sessions, order) {
   return visible.sort((a, b) => direction * (new Date(a.iso) - new Date(b.iso)));
 }
 
-function setHistorySortOpen(open, focus) {
-  $('historySort').open = open;
-  $('historySortToggle').setAttribute('aria-expanded', String(open));
-  if (focus) $('historySortToggle').focus();
-}
-
 function renderHistory() {
   const host = $('historyList');
   const routine = ROUTINE_BY_ID.get(historyOrder);
@@ -1053,9 +1046,7 @@ function renderHistory() {
   $('historyCount').textContent = routine
     ? nf0.format(sessions.length) + ' de ' + nf0.format(state.sessions.length) + ' sesiones'
     : state.sessions.length === 0 ? 'Sin sesiones' : nf0.format(state.sessions.length) + (state.sessions.length === 1 ? ' sesión' : ' sesiones');
-  $('historySortOptions').querySelectorAll('[data-history-order]').forEach(button => {
-    button.setAttribute('aria-pressed', String(button.dataset.historyOrder === historyOrder));
-  });
+  $('historySort').value = historyOrder;
   if (sessions.length === 0) {
     host.replaceChildren(el('div', { class: 'empty' },
       el('p', { class: 'empty__title', text: routine ? 'Todavía no hay sesiones del bloque ' + routine.code : 'Todavía no hay sesiones' }),
@@ -2208,7 +2199,6 @@ function historyEntryLabel(session, entry) {
 }
 
 function selectTab(name, focus) {
-  if (name !== 'historial') setHistorySortOpen(false);
   if (!VIEWS.includes(name)) name = TABS[0];
   const calendarOpen = name === 'calendario';
   TABS.forEach(id => {
@@ -2414,30 +2404,9 @@ function bindEvents() {
     renderCalendar();
   });
 
-  $('historySort').addEventListener('toggle', () => {
-    $('historySortToggle').setAttribute('aria-expanded', String($('historySort').open));
-  });
-  $('historySortOptions').addEventListener('click', event => {
-    const button = event.target.closest('[data-history-order]');
-    if (!button) return;
-    historyOrder = button.dataset.historyOrder;
+  $('historySort').addEventListener('change', event => {
+    historyOrder = event.target.value;
     renderHistory();
-    setHistorySortOpen(false, true);
-  });
-  $('historySort').addEventListener('keydown', event => {
-    if (event.key === 'Escape' && $('historySort').open) {
-      event.preventDefault();
-      event.stopPropagation();
-      setHistorySortOpen(false, true);
-    }
-  });
-  // Cerrar solo cuando otro control recibe foco: en iPhone, tocar una opción
-  // puede quitar el foco sin dárselo al botón antes de que llegue su click.
-  document.addEventListener('focusin', event => {
-    if (!$('historySort').contains(event.target)) setHistorySortOpen(false);
-  });
-  document.addEventListener('click', event => {
-    if (!$('historySort').contains(event.target)) setHistorySortOpen(false);
   });
 
   $('historyList').addEventListener('click', event => {

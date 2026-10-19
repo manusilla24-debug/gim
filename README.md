@@ -55,9 +55,10 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   ver todas las sesiones de la más reciente a la más antigua o al revés. Las
   opciones de bloque A, B y C muestran solo ese bloque, con sus sesiones más
   recientes primero. La consulta no altera los registros y vuelve al orden
-  inicial al recargar o cambiar de atleta. El desplegable usa apertura nativa
-  del navegador y acabado de cristal translúcido; tocar una opción no lo cierra
-  prematuramente cuando el navegador no mueve el foco al botón.
+  inicial al recargar o cambiar de atleta. El cuadrado de flechas contiene un
+  selector nativo como el de Ejercicio en Progresión: al tocarlo directamente,
+  el dispositivo abre su propio menú de opciones. No usa un menú personalizado
+  ni una apertura simulada con JavaScript.
 - **Controles al final del registro**: terminar, guardar y vaciar quedan debajo
   de los ejercicios, sin flotar sobre los campos al desplazarse.
 - **Resumen directo** con el número de sesiones y la última actividad realizada.
