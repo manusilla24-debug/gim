@@ -80,6 +80,7 @@ let store = emptyStore();
 let state = emptyLog();     // el registro del atleta activo
 let currentUser = null;
 let chartExercise = null;   // ejercicio seleccionado en Progresión
+let historyOrder = 'newest'; // orden o bloque visible; no modifica los datos guardados
 let tableVisible = false;
 let comparisonRoutineId = SPLIT[0].id;
 let comparisonSessionIds = ['', '', ''];
@@ -359,6 +360,8 @@ function openUser(id) {
   state = store.logs[id];
   store.lastUserId = id;
   chartExercise = null;
+  historyOrder = 'newest';
+  setHistorySortOpen(false);
   comparisonSessionIds = ['', '', ''];
   comparisonNeedsDefaults = true;
   try { sessionStorage.setItem(SESSION_KEY, id); } catch (e) { /* sin persistencia */ }
@@ -1027,17 +1030,48 @@ function iconTrash() {
 
 /* --- Historial ---------------------------------------------------------- */
 
+function historySessions(sessions, order) {
+  const routine = ROUTINE_BY_ID.get(order);
+  const visible = routine ? sessions.filter(session => session.routineId === routine.id) : sessions.slice();
+  const direction = order === 'oldest' ? 1 : -1;
+  return visible.sort((a, b) => direction * (new Date(a.iso) - new Date(b.iso)));
+}
+
+function setHistorySortOpen(open, focus) {
+  $('historySortToggle').setAttribute('aria-expanded', String(open));
+  $('historySortOptions').hidden = !open;
+  if (focus) {
+    const target = open
+      ? $('historySortOptions').querySelector('[aria-pressed="true"]')
+      : $('historySortToggle');
+    target.focus();
+  }
+}
+
 function renderHistory() {
   const host = $('historyList');
-  if (state.sessions.length === 0) {
+  const routine = ROUTINE_BY_ID.get(historyOrder);
+  const sessions = historySessions(state.sessions, historyOrder);
+  $('historyDescription').textContent = routine
+    ? 'Bloque ' + routine.code + ' · ' + routine.name + ', de la más reciente a la más antigua.'
+    : 'Todas las sesiones, de la ' + (historyOrder === 'oldest' ? 'más antigua a la más reciente.' : 'más reciente a la más antigua.');
+  $('historyCount').textContent = routine
+    ? nf0.format(sessions.length) + ' de ' + nf0.format(state.sessions.length) + ' sesiones'
+    : state.sessions.length === 0 ? 'Sin sesiones' : nf0.format(state.sessions.length) + (state.sessions.length === 1 ? ' sesión' : ' sesiones');
+  $('historySortOptions').querySelectorAll('[data-history-order]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.historyOrder === historyOrder));
+  });
+  if (sessions.length === 0) {
     host.replaceChildren(el('div', { class: 'empty' },
-      el('p', { class: 'empty__title', text: 'Todavía no hay sesiones' }),
-      el('p', { text: 'Rellena la sesión de hoy y ciérrala: quedará aquí con la carga, las series y el tonelaje de cada ejercicio.' })
+      el('p', { class: 'empty__title', text: routine ? 'Todavía no hay sesiones del bloque ' + routine.code : 'Todavía no hay sesiones' }),
+      el('p', { text: routine
+        ? 'Elige otro bloque o una opción de fecha para ver el resto del historial.'
+        : 'Rellena la sesión de hoy y ciérrala: quedará aquí con la carga, las series y el tonelaje de cada ejercicio.' })
     ));
     return;
   }
 
-  const ledger = el('div', { class: 'ledger' }, state.sessions.map(session => {
+  const ledger = el('div', { class: 'ledger' }, sessions.map(session => {
     const when = new Date(session.iso);
     return el('article', { class: 'entry' },
       el('div', { class: 'entry__head' },
@@ -2179,6 +2213,7 @@ function historyEntryLabel(session, entry) {
 }
 
 function selectTab(name, focus) {
+  if (name !== 'historial') setHistorySortOpen(false);
   if (!VIEWS.includes(name)) name = TABS[0];
   const calendarOpen = name === 'calendario';
   TABS.forEach(id => {
@@ -2382,6 +2417,30 @@ function bindEvents() {
   $('calendarNext').addEventListener('click', () => {
     calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1);
     renderCalendar();
+  });
+
+  $('historySortToggle').addEventListener('click', () => {
+    setHistorySortOpen($('historySortOptions').hidden, true);
+  });
+  $('historySortOptions').addEventListener('click', event => {
+    const button = event.target.closest('[data-history-order]');
+    if (!button) return;
+    historyOrder = button.dataset.historyOrder;
+    renderHistory();
+    setHistorySortOpen(false, true);
+  });
+  $('historySort').addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !$('historySortOptions').hidden) {
+      event.preventDefault();
+      event.stopPropagation();
+      setHistorySortOpen(false, true);
+    }
+  });
+  $('historySort').addEventListener('focusout', event => {
+    if (!$('historySort').contains(event.relatedTarget)) setHistorySortOpen(false);
+  });
+  document.addEventListener('click', event => {
+    if (!$('historySort').contains(event.target)) setHistorySortOpen(false);
   });
 
   $('historyList').addEventListener('click', event => {

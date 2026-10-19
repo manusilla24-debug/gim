@@ -1849,3 +1849,44 @@ dialog::backdrop {
 .ex--sets-only .ex__fields { display: grid; grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); }
 .ex--sets-only .ex__note { grid-column: 1 / -1; }
 .log .ex--sets-only .field__label { display: block; }
+
+/* Orden y consulta por bloque del historial. */
+.history-title-row { position: relative; display: flex; align-items: center; gap: 12px; width: fit-content; max-width: 100%; }
+.history-title-row .panel-head__title { margin-top: 0; }
+.history-sort .history-sort__toggle { width: 44px; height: 44px; border-radius: var(--radius); background: var(--raised); }
+.history-sort__toggle[aria-expanded="true"] { border-color: var(--ink); color: var(--ink); }
+.history-sort__options {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  display: grid;
+  width: min(280px, calc(100vw - 2 * var(--gutter)));
+  padding: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--raised);
+  box-shadow: var(--shadow);
+}
+.history-sort__options button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.history-sort__options button:hover { background: var(--surface); }
+.history-sort__options button[aria-pressed="true"] { background: var(--surface); font-weight: 700; }
+.history-sort__options button[aria-pressed="true"]::after { content: '✓'; }
+@media print {
+  .history-sort { display: none; }
+}

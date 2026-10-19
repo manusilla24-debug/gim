@@ -51,6 +51,11 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   sesión. Las sesiones cerradas se pueden corregir desde el botón del lápiz;
   los abdominales se anotan con series y notas, sin campos de carga ni
   repeticiones. Los registros antiguos conservan sus repeticiones originales.
+- **Orden del historial**: el botón cuadrado de flechas junto al título permite
+  ver todas las sesiones de la más reciente a la más antigua o al revés. Las
+  opciones de bloque A, B y C muestran solo ese bloque, con sus sesiones más
+  recientes primero. La consulta no altera los registros y vuelve al orden
+  inicial al recargar o cambiar de atleta.
 - **Controles al final del registro**: terminar, guardar y vaciar quedan debajo
   de los ejercicios, sin flotar sobre los campos al desplazarse.
 - **Resumen directo** con el número de sesiones y la última actividad realizada.
