@@ -94,6 +94,19 @@ vercel.json                cabeceras, cleanUrls y redirección de /gim.html
 
 Sin dependencias, sin paso de compilación: el sitio es estático.
 
+## Ayuda para desarrollar este proyecto
+
+El proyecto incluye nueve [perfiles de trabajo](docs/desarrollo/README.md)
+inspirados en Agency Agents y adaptados a esta aplicación personal. Son pequeñas
+guías para que el asistente revise mejor el código, la facilidad de uso, los
+datos y el funcionamiento sin conexión. No añaden funciones ni IA a la app,
+no necesitan instalar nada y no configuran otros proyectos ni la cuenta.
+
+Puedes pedir los cambios con palabras normales, por ejemplo: «Revisa que no se
+pierda lo que anoto al recargar, sin cambiar nada todavía». El asistente elegirá
+el perfil adecuado siguiendo `AGENTS.md`. La guía incluye también ejemplos para
+seleccionarlos expresamente.
+
 ## En local
 
 Hace falta un servidor (las rutas son absolutas y el service worker no funciona
