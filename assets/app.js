@@ -1038,14 +1038,9 @@ function historySessions(sessions, order) {
 }
 
 function setHistorySortOpen(open, focus) {
+  $('historySort').open = open;
   $('historySortToggle').setAttribute('aria-expanded', String(open));
-  $('historySortOptions').hidden = !open;
-  if (focus) {
-    const target = open
-      ? $('historySortOptions').querySelector('[aria-pressed="true"]')
-      : $('historySortToggle');
-    target.focus();
-  }
+  if (focus) $('historySortToggle').focus();
 }
 
 function renderHistory() {
@@ -2419,8 +2414,8 @@ function bindEvents() {
     renderCalendar();
   });
 
-  $('historySortToggle').addEventListener('click', () => {
-    setHistorySortOpen($('historySortOptions').hidden, true);
+  $('historySort').addEventListener('toggle', () => {
+    $('historySortToggle').setAttribute('aria-expanded', String($('historySort').open));
   });
   $('historySortOptions').addEventListener('click', event => {
     const button = event.target.closest('[data-history-order]');
@@ -2430,14 +2425,16 @@ function bindEvents() {
     setHistorySortOpen(false, true);
   });
   $('historySort').addEventListener('keydown', event => {
-    if (event.key === 'Escape' && !$('historySortOptions').hidden) {
+    if (event.key === 'Escape' && $('historySort').open) {
       event.preventDefault();
       event.stopPropagation();
       setHistorySortOpen(false, true);
     }
   });
-  $('historySort').addEventListener('focusout', event => {
-    if (!$('historySort').contains(event.relatedTarget)) setHistorySortOpen(false);
+  // Cerrar solo cuando otro control recibe foco: en iPhone, tocar una opción
+  // puede quitar el foco sin dárselo al botón antes de que llegue su click.
+  document.addEventListener('focusin', event => {
+    if (!$('historySort').contains(event.target)) setHistorySortOpen(false);
   });
   document.addEventListener('click', event => {
     if (!$('historySort').contains(event.target)) setHistorySortOpen(false);

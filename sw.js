@@ -1,7 +1,7 @@
 /* Service worker: deja la aplicación utilizable sin conexión.
    Al cambiar archivos, sube VERSION para que se renueve la caché. */
 
-const VERSION = 'gim-2026-10-19-orden-historial';
+const VERSION = 'gim-2026-10-19-menu-historial-nativo';
 const FONTS = 'gim-fuentes-1';
 
 const SHELL = [

@@ -1853,8 +1853,10 @@ dialog::backdrop {
 /* Orden y consulta por bloque del historial. */
 .history-title-row { position: relative; display: flex; align-items: center; gap: 12px; width: fit-content; max-width: 100%; }
 .history-title-row .panel-head__title { margin-top: 0; }
-.history-sort .history-sort__toggle { width: 44px; height: 44px; border-radius: var(--radius); background: var(--raised); }
-.history-sort__toggle[aria-expanded="true"] { border-color: var(--ink); color: var(--ink); }
+.history-sort .history-sort__toggle { width: 44px; height: 44px; border-radius: var(--radius); background: var(--raised); list-style: none; }
+.history-sort__toggle::-webkit-details-marker { display: none; }
+.history-sort[open] .history-sort__toggle { border-color: var(--ink); color: var(--ink); }
+.history-sort__toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .history-sort__options {
   position: absolute;
   top: calc(100% + 8px);
@@ -1887,6 +1889,21 @@ dialog::backdrop {
 .history-sort__options button:hover { background: var(--surface); }
 .history-sort__options button[aria-pressed="true"] { background: var(--surface); font-weight: 700; }
 .history-sort__options button[aria-pressed="true"]::after { content: '✓'; }
+@supports ((-webkit-backdrop-filter: blur(20px)) or (backdrop-filter: blur(20px))) {
+  .history-sort .history-sort__toggle, .history-sort__options {
+    background: var(--glass, var(--raised));
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    backdrop-filter: blur(20px) saturate(150%);
+    box-shadow: var(--glass-shadow, var(--shadow));
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .history-sort .history-sort__toggle, .history-sort__options {
+    background: var(--raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
 @media print {
   .history-sort { display: none; }
 }
