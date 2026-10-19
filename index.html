@@ -444,30 +444,60 @@
       <div>
         <p class="eyebrow">Privado · funciona sin conexión</p>
         <h2 class="coach__title" id="coachTitle">Entrenador</h2>
+        <p class="coach__context" id="coachContext"></p>
       </div>
-      <button class="iconbtn" type="button" id="closeCoach" aria-label="Cerrar entrenador">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>
-      </button>
+      <div class="coach__head-actions">
+        <button class="iconbtn" type="button" id="resetCoachChat" aria-label="Empezar una conversación nueva" title="Nueva conversación">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M3 11a9 9 0 1 1 3 7M3 4v7h7"></path></svg>
+        </button>
+        <button class="iconbtn" type="button" id="closeCoach" aria-label="Cerrar entrenador">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg>
+        </button>
+      </div>
     </header>
     <div class="coach__messages" id="coachMessages" role="log" aria-live="polite" aria-relevant="additions"></div>
     <div class="coach__suggestions" id="coachSuggestions" aria-label="Preguntas rápidas">
       <button type="button" data-coach-prompt="plan">Planificar sesión</button>
       <button type="button" data-coach-prompt="plateau">Ver estancamientos</button>
       <button type="button" data-coach-prompt="today">¿Qué toca hoy?</button>
+      <button type="button" data-coach-prompt="summary">Resumen semanal</button>
+      <button type="button" data-coach-prompt="draft">Revisar borrador</button>
+      <button type="button" data-coach-prompt="exercises">Consultar ejercicio</button>
+      <button type="button" data-coach-prompt="last">Última sesión</button>
+      <button type="button" data-coach-prompt="technique">Técnica</button>
+      <button type="button" data-coach-prompt="rest">Descansos</button>
+      <button type="button" data-coach-prompt="effort">Esfuerzo y RIR</button>
+    </div>
+    <div class="coach__settings">
+      <label for="coachMode">Propuesta
+        <select id="coachMode">
+          <option value="repeat">Repetir referencias</option>
+          <option value="progress">Una repetición más</option>
+          <option value="short">Menos series</option>
+        </select>
+      </label>
+      <button class="btn btn--quiet" type="button" id="undoCoachPlan" hidden>Deshacer propuesta</button>
     </div>
     <div class="coach__plan-actions" id="coachPlanActions" hidden>
+      <label for="coachApplyMode">Al aplicar
+        <select id="coachApplyMode">
+          <option value="fill">Completar campos vacíos</option>
+          <option value="replace">Sustituir cifras del borrador</option>
+        </select>
+      </label>
       <button class="btn btn--primary" type="button" id="applyCoachPlan">Aplicar a la sesión</button>
       <button class="btn btn--quiet" type="button" id="explainCoachPlan">¿Cómo lo has calculado?</button>
     </div>
     <form class="coach__form" id="coachForm">
       <label class="sr" for="coachInput">Escribe al entrenador</label>
-      <input type="text" id="coachInput" maxlength="180" autocomplete="off" placeholder="Pregúntame por tu entrenamiento…">
+      <textarea id="coachInput" rows="2" maxlength="800" autocomplete="off" enterkeyhint="send" placeholder="Cuéntame tu duda, objetivo o cómo ha ido la serie…" aria-describedby="coachInputHint"></textarea>
       <button class="btn btn--primary" type="submit">Enviar</button>
     </form>
-    <p class="coach__note">Las propuestas se calculan en este dispositivo a partir de tu registro. Ajusta o detén el entrenamiento si aparece dolor.</p>
+    <p class="coach__note" id="coachInputHint">Enter para enviar · Mayús + Enter para otra línea. Guía local, sin modelo de IA. Memoria temporal hasta recargar; no modifica registros al conversar.</p>
   </section>
 </dialog>
 
+<script src="/assets/coach-knowledge.js"></script>
 <script src="/assets/app.js"></script>
 </body>
 </html>

@@ -89,6 +89,10 @@ let managing = false;       // el selector, en modo gestión
 let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let coachPlan = null;       // propuesta efímera; el historial sigue siendo la fuente
 let coachUserId = null;
+let coachRoutineId = null;
+let coachExerciseId = null;
+let coachUndo = null;
+let coachConversation = newCoachConversation();
 
 /* --- Utilidades --------------------------------------------------------- */
 
@@ -465,13 +469,18 @@ function renderSplit() {
    reglas pequeñas, explicables y conservadoras de sobrecarga progresiva.
    ------------------------------------------------------------------------ */
 
+function coachSessions() {
+  return state.sessions.filter(session => session && Array.isArray(session.entries) && Number.isFinite(Date.parse(session.iso)))
+    .slice().sort((a, b) => new Date(b.iso) - new Date(a.iso));
+}
+
 function coachHistory(routineId, exerciseName, exerciseId, legacyName) {
   const rows = [];
-  for (const session of state.sessions) {
+  for (const session of coachSessions()) {
     if (session.routineId !== routineId) continue;
-    const entry = session.entries.find(item => (item.exerciseId === exerciseId && (!legacyName || item.name === exerciseName))
-      || (!item.exerciseId && (item.name === exerciseName || item.name === legacyName)));
-    if (entry) rows.push({ entry, iso: session.iso });
+    const entry = session.entries.find(item => item && ((item.exerciseId === exerciseId && (!legacyName || item.name === exerciseName))
+      || (!item.exerciseId && (item.name === exerciseName || item.name === legacyName))));
+    if (entry && [entry.load, entry.sets, entry.reps].some(value => num(value) > 0)) rows.push({ entry, iso: session.iso });
   }
   return rows;
 }
@@ -480,8 +489,13 @@ function samePerformance(a, b) {
   return num(a.load) === num(b.load) && num(a.reps) === num(b.reps) && num(a.sets) === num(b.sets);
 }
 
-function buildCoachPlan() {
-  const routine = ROUTINE_BY_ID.get(state.activeId);
+function coachSnapshot() {
+  return JSON.stringify([currentUser && currentUser.id, state.activeId, state.draft, state.extra, state.sessions,
+    coachConversation.reports, coachConversation.readiness, coachConversation.minutes]);
+}
+
+function buildCoachPlan(mode = 'repeat', routineId = state.activeId) {
+  const routine = ROUTINE_BY_ID.get(routineId);
   const rows = exercisesOf(routine.id).filter(exercise => (exercise.name || '').trim()).map(exercise => {
     const valuesToday = draftOf(routine.id, exercise.id);
     const exerciseName = selectedExerciseName(exercise, valuesToday);
@@ -495,9 +509,10 @@ function buildCoachPlan() {
     if (exercise.tracksSetsOnly) {
       return {
         id: exercise.id, name: exerciseName,
-        values: { load: '', sets: latest && num(latest.sets) > 0 ? String(latest.sets) : '3', reps: '', note: '' },
+        values: { load: '', sets: latest && num(latest.sets) > 0 ? String(mode === 'short' ? Math.min(2, num(latest.sets)) : num(latest.sets)) : '', reps: '', note: '' },
         plateau: false,
-        reason: 'Mantener las series de abdominales; anota los detalles en las notas.'
+        latest: historyRows[0],
+        reason: latest ? (mode === 'short' ? 'Como máximo dos series de la referencia; los detalles van en las notas.' : 'Repite las series registradas; los detalles van en las notas.') : 'Sin referencia: anota las series que decidas realizar.'
       };
     }
 
@@ -505,9 +520,9 @@ function buildCoachPlan() {
       return {
         id: exercise.id,
         name: exerciseName,
-        values: { load: '', sets: tracksLoad ? '3' : '', reps: '10', note: '', variant: valuesToday.variant || exercise.defaultVariant || '' },
+        values: { load: '', sets: '', reps: '', note: '', variant: valuesToday.variant || exercise.defaultVariant || '' },
         plateau: false,
-        reason: 'Sin historial: referencia inicial moderada; ajusta las repeticiones al ejercicio.'
+        reason: 'Sin historial comparable: elige y registra tu referencia; no calculo una carga inicial.'
       };
     }
 
@@ -515,32 +530,35 @@ function buildCoachPlan() {
     const sets = num(latest.sets);
     const reps = num(latest.reps);
     const values = {
-      load: load === '' ? '' : String(load),
-      sets: sets === '' ? '' : String(sets),
-      reps: reps === '' ? '' : String(reps),
+      load: !tracksLoad || load === '' || load < 0 ? '' : String(load),
+      sets: sets > 0 && Number.isInteger(sets) ? String(sets) : '',
+      reps: reps > 0 && Number.isInteger(reps) ? String(reps) : '',
       note: '',
       variant: valuesToday.variant || exercise.defaultVariant || ''
     };
     let reason = 'Mantener la última referencia.';
 
-    if (!tracksLoad || load === '') {
-      if (reps > 0) values.reps = String(reps + 1);
-      reason = 'Progresión suave: una repetición más que la última vez.';
-    } else if (reps >= 12 && !plateau) {
-      values.load = String(Math.round((load + 2.5) * 2) / 2);
-      values.reps = '8';
-      reason = 'Completaste 12 o más repeticiones: pequeña subida de carga y vuelta a 8 repeticiones.';
-    } else if (reps > 0) {
+    const effort = coachReportedEffort(exercise.id);
+    const hold = coachConversation.readiness === 'fatigue' || effort !== null && effort <= 1;
+    if (mode === 'progress' && !hold && values.reps && reps < 12 && values.sets && (!tracksLoad || load > 0)) {
       values.reps = String(reps + 1);
       reason = plateau
-        ? 'Posible estancamiento: mantén la carga e intenta solo una repetición más.'
-        : 'Sobrecarga conservadora: misma carga y una repetición más.';
+        ? 'Tres referencias iguales. Una repetición extra es opcional si mantienes técnica y margen de esfuerzo.'
+        : 'Opción: una repetición más, solo si la última referencia resultó controlada. La app no mide tu esfuerzo.';
+    } else if (mode === 'progress') {
+      reason = hold ? 'Por la fatiga o el poco margen de esfuerzo que has indicado en el chat, no añado repeticiones. Decide si conviene reducir la exigencia.'
+        : 'Repite la referencia: no hay base suficiente para subir automáticamente la carga o las repeticiones.';
     }
 
-    return { id: exercise.id, name: exerciseName, values, plateau, reason };
+    if (mode === 'short' && sets > 2) {
+      values.sets = '2';
+      reason = 'Propuesta abreviada: dos series en lugar de ' + sets + '; no estima la duración ni aumenta la carga.';
+    }
+
+    return { id: exercise.id, name: exerciseName, values, plateau, reason, latest: historyRows[0] };
   });
 
-  return { routine, rows };
+  return { routine, rows, mode, snapshot: coachSnapshot(), userId: currentUser && currentUser.id };
 }
 
 function coachLine(row) {
@@ -559,7 +577,9 @@ function addCoachMessage(text, user) {
     el('p', { class: 'coach__bubble', text })
   );
   messages.append(message);
-  messages.scrollTop = messages.scrollHeight;
+  while (messages.children.length > 60) messages.firstElementChild.remove();
+  if (user) messages.scrollTop = messages.scrollHeight;
+  else messages.scrollTop += message.getBoundingClientRect().top - messages.getBoundingClientRect().top - 12;
 }
 
 function openModal(dialog) {
@@ -571,36 +591,74 @@ function openModal(dialog) {
 
 function coachWelcome() {
   const routine = ROUTINE_BY_ID.get(state.activeId);
-  const previous = state.sessions.find(session => session.routineId === routine.id);
+  const previous = coachSessions().find(session => session.routineId === routine.id);
   const context = previous
     ? 'La última vez que hiciste este bloque fue ' + relativeDay(previous.iso) + '.'
     : 'Todavía no tienes una sesión anterior de este bloque.';
-  addCoachMessage('Hoy está programado el bloque ' + routine.code + ': ' + routine.name + '.\n' + context
-    + ' Puedo prepararte una propuesta o revisar posibles estancamientos.');
+  const next = ROUTINE_BY_ID.get(state.nextId);
+  $('coachContext').textContent = coachContextLabel();
+  addCoachMessage('Estás viendo ' + routine.code + ': ' + routine.name + '. El siguiente bloque del ciclo es ' + next.code + '.\n' + context
+    + '\nCuéntame qué quieres conseguir o pregúntame por técnica, cargas, descansos, alimentación o tu progreso. Puedo usar tu historial y recordar lo que me cuentes durante esta conversación. ¿Qué necesitas hoy?');
+  addCoachFollowups(['Soy principiante', 'Quiero ganar músculo', '¿Cómo voy esta semana?']);
+}
+
+function coachContextLabel() {
+  const count = state.sessions.length;
+  return currentUser.name + ' · bloque ' + ROUTINE_BY_ID.get(state.activeId).code + ' · ' + count + (count === 1 ? ' sesión registrada' : ' sesiones registradas')
+    + (coachConversation.goal ? ' · ' + coachConversation.goal : '')
+    + (coachConversation.minutes ? ' · ' + coachConversation.minutes + ' min disponibles' : '');
 }
 
 function openCoach() {
   const dialog = $('coachDialog');
-  if (coachUserId !== currentUser.id) {
+  if (coachUserId !== currentUser.id || coachRoutineId !== state.activeId) {
+    if (coachUserId !== currentUser.id) coachConversation = newCoachConversation();
+    coachConversation.focus = null;
+    coachConversation.pending = null;
+    coachConversation.awaiting = '';
+    coachConversation.lastTopics = [];
     $('coachMessages').replaceChildren();
     coachPlan = null;
     coachUserId = currentUser.id;
+    coachRoutineId = state.activeId;
+    coachExerciseId = null;
+    coachUndo = null;
+    $('coachMode').value = 'repeat';
+    $('coachApplyMode').value = 'fill';
+    $('undoCoachPlan').hidden = true;
     coachWelcome();
   } else if (!$('coachMessages').children.length) {
     coachWelcome();
   }
-  $('coachPlanActions').hidden = !coachPlan || coachPlan.routine.id !== state.activeId;
+  if (coachPlan && coachPlan.snapshot !== coachSnapshot()) invalidateCoachPlan();
+  $('coachPlanActions').hidden = !coachPlan;
+  $('coachContext').textContent = coachContextLabel();
   openModal(dialog);
   $('coachInput').focus();
 }
 
-function showCoachPlan() {
-  coachPlan = buildCoachPlan();
-  const previous = state.sessions.find(session => session.routineId === coachPlan.routine.id);
+function showCoachPlan(mode = $('coachMode').value) {
+  $('coachMode').value = mode;
+  coachExerciseId = null;
+  coachPlan = buildCoachPlan(mode);
+  const previous = coachSessions().find(session => session.routineId === coachPlan.routine.id);
   const intro = previous
     ? 'He usado tu última sesión del bloque ' + coachPlan.routine.code + ' y las anteriores comparables:'
-    : 'Como aún no hay historial para este bloque, te dejo referencias iniciales editables:';
-  addCoachMessage(intro + '\n' + coachPlan.rows.map(coachLine).join('\n'));
+    : 'No hay historial de este bloque: los campos sin referencia quedan vacíos para que los decidas tú.';
+  const labels = { repeat: 'Repetir referencias', progress: 'Probar una repetición más', short: 'Reducir series' };
+  addCoachMessage(labels[mode] + ' · bloque ' + coachPlan.routine.code + '\n' + intro);
+  const cards = el('div', { class: 'coach__cards' });
+  coachPlan.rows.forEach(row => {
+    cards.append(el('section', { class: 'coach__card' },
+      el('h3', { text: row.name }),
+      el('p', { class: 'coach__target', text: coachLine(row).replace('• ' + row.name + ': ', '') }),
+      el('p', { text: row.latest ? 'Referencia del ' + dateShort.format(new Date(row.latest.iso)) + ': ' + coachValues(row.latest.entry) : 'Sin referencia comparable con cifras registradas.' }),
+      el('p', { class: 'coach__reason', text: row.reason })
+    ));
+  });
+  const messages = $('coachMessages');
+  messages.lastElementChild.append(cards);
+  messages.scrollTop = messages.scrollHeight;
   $('coachPlanActions').hidden = false;
 }
 
@@ -609,51 +667,517 @@ function showCoachPlateaus() {
   const plateaus = plan.rows.filter(row => row.plateau);
   if (!plateaus.length) {
     addCoachMessage(state.sessions.length < 3
-      ? 'Aún no hay tres registros iguales comparables para confirmar un estancamiento. Sigue registrando carga, series y repeticiones.'
-      : 'No veo tres sesiones consecutivas idénticas en los ejercicios de este bloque. La progresión parece activa.');
+      ? 'Aún no hay tres referencias comparables iguales. Sigue registrando carga, series y repeticiones.'
+      : 'No encuentro tres referencias comparables seguidas e idénticas en este bloque. Eso no demuestra que estés progresando: consulta un ejercicio para ver sus cifras.');
     return;
   }
   addCoachMessage('He encontrado ' + plateaus.length + (plateaus.length === 1 ? ' posible estancamiento:' : ' posibles estancamientos:')
     + '\n' + plateaus.map(row => '• ' + row.name + ': las tres últimas referencias son iguales.').join('\n')
-    + '\nNo hace falta cambiarlo todo: prueba primero una repetición más con la misma carga.');
+    + '\nRepetir cifras no confirma un estancamiento: puede ser intencionado. Revisa las notas y tus sensaciones antes de cambiar objetivos.');
 }
 
 function explainCoachPlan() {
-  addCoachMessage('Uso reglas transparentes: comparo solo sesiones del bloque actual; con 8–11 repeticiones propongo una más, y al superar 12 propongo subir 2,5 kg y volver a 8. Tres registros idénticos señalan un posible estancamiento. Es una referencia, no una orden: adapta la carga a tu técnica y sensaciones.');
+  addCoachMessage('Comparo registros del mismo bloque y ejercicio, separando sus variantes. Por defecto repito tu referencia más reciente. En «Una repetición más» solo añado una si hay series y repeticiones válidas por debajo de 12 (y carga si corresponde); es una opción, no una evaluación física. «Menos series» limita a dos las referencias con más de dos series. No subo kilos automáticamente ni conozco tu técnica, esfuerzo o recuperación. Tres referencias iguales son una señal para revisar, no un diagnóstico.\nAl aplicar puedes completar solo campos vacíos o sustituir valores tras confirmarlo. Las notas se conservan. El chat y sus ajustes se reinician al recargar; tus entrenamientos siguen guardados.');
+}
+
+function normalizeCoachText(value) {
+  return String(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function coachValues(entry) {
+  const parts = [];
+  if (num(entry.load) !== '' && num(entry.load) >= 0) parts.push(kg(num(entry.load)));
+  if (num(entry.sets) > 0) parts.push(nf1.format(num(entry.sets)) + ' series');
+  if (num(entry.reps) > 0) parts.push(nf1.format(num(entry.reps)) + ' reps');
+  return parts.join(' · ') || 'Sin valores';
+}
+
+function showCoachSummary(days = 7) {
+  coachExerciseId = null;
+  const now = new Date();
+  const calendarMonth = days === 'month';
+  const start = new Date(now.getFullYear(), now.getMonth(), calendarMonth ? 1 : now.getDate() - days + 1);
+  const recent = coachSessions().filter(session => new Date(session.iso) >= start && new Date(session.iso) <= now);
+  const counts = SPLIT.map(routine => routine.code + ': ' + recent.filter(session => session.routineId === routine.id).length);
+  const volume = recent.reduce((sum, session) => sum + volumeOf(session.entries.filter(entry => entry && typeof entry === 'object')), 0);
+  const period = calendarMonth ? 'Este mes, desde el ' + dateShort.format(start) : 'Últimos ' + days + ' días, incluido hoy';
+  addCoachMessage(period + ' · ' + recent.length + (recent.length === 1 ? ' sesión finalizada.\n' : ' sesiones finalizadas.\n')
+    + counts.join(' · ') + '\nTonelaje registrado: ' + kg(volume) + ' (carga × series × repeticiones). No incluye trabajo sin carga registrada ni el borrador.\n'
+    + (recent.length ? 'La distribución describe tus registros; no permite valorar por sí sola tu recuperación o la calidad del entrenamiento.' : 'No hay sesiones finalizadas en este periodo. Puedes consultar tus referencias anteriores por ejercicio.'));
+}
+
+function showCoachLastSession(routineId = state.activeId) {
+  coachExerciseId = null;
+  const session = coachSessions().find(item => item.routineId === routineId);
+  if (!session) {
+    addCoachMessage('Todavía no hay una sesión finalizada de este bloque. «Revisar borrador» muestra lo que llevas anotado ahora.');
+    return;
+  }
+  const entries = session.entries.filter(entry => entry && typeof entry === 'object');
+  addCoachMessage('Última sesión del bloque ' + ROUTINE_BY_ID.get(routineId).code + ' · ' + dateShort.format(new Date(session.iso)) + '\n'
+    + entries.map(entry => '• ' + String(entry.name || 'Ejercicio') + ': ' + coachValues(entry) + (entry.note ? '\n  Nota: ' + entry.note : '')).join('\n')
+    + '\nTonelaje registrado: ' + kg(volumeOf(entries)) + '. Puedes consultar un ejercicio para comparar sus referencias.');
+}
+
+function showCoachDraft() {
+  coachExerciseId = null;
+  const exercises = exercisesOf(state.activeId).filter(exercise => exercise.name.trim());
+  const issues = [];
+  let started = 0;
+  exercises.forEach(exercise => {
+    const values = draftOf(state.activeId, exercise.id);
+    if (![values.load, values.sets, values.reps, values.note].some(value => value !== '' && value != null)) return;
+    started++;
+    const missing = [];
+    if (!(num(values.sets) > 0)) missing.push('series');
+    if (!exercise.tracksSetsOnly && !(num(values.reps) > 0)) missing.push('repeticiones');
+    if (exercise.tracksLoad !== false && (num(values.load) === '' || num(values.load) < 0)) missing.push('carga');
+    if (missing.length) issues.push('• ' + selectedExerciseName(exercise, values) + ': revisa ' + missing.join(', ') + '.');
+  });
+  addCoachMessage('Borrador del bloque ' + ROUTINE_BY_ID.get(state.activeId).code + ': ' + started + ' de ' + exercises.length + ' ejercicios con anotaciones.\n'
+    + (issues.join('\n') || (started ? 'Los ejercicios iniciados tienen sus campos numéricos básicos. Revisa que las cifras reflejen lo que has hecho.' : 'Aún no has anotado nada. Puedes partir de una propuesta o de la última sesión.'))
+    + '\nNo he cambiado nada ni he finalizado la sesión.');
+}
+
+function coachExerciseChoices(matches, question = '') {
+  coachConversation.pending = question;
+  addCoachMessage('Para responder a eso necesito concretar el ejercicio. Elige una de estas opciones:');
+  const choices = el('div', { class: 'coach__choices' });
+  matches.forEach(exercise => {
+    const routineId = exercise.routineId || state.activeId;
+    const suffix = exercise.id === 'b2' ? ' · remo 1' : exercise.id === 'b3' ? ' · remo 2' : '';
+    choices.append(el('button', {
+      type: 'button', text: selectedExerciseName(exercise, draftOf(routineId, exercise.id)) + suffix + ' · ' + ROUTINE_BY_ID.get(routineId).code,
+      dataset: { coachExercise: exercise.id, coachRoutine: routineId, coachQuestion: question }
+    }));
+  });
+  $('coachMessages').lastElementChild.append(choices);
+}
+
+function showCoachExercise(exercise, routineId = state.activeId) {
+  coachExerciseId = exercise.id;
+  coachConversation.focus = { id: exercise.id, routineId };
+  const name = selectedExerciseName(exercise, draftOf(routineId, exercise.id));
+  const rows = coachHistory(routineId, name, exercise.id, exercise.legacyName).slice(0, 3);
+  if (!rows.length) {
+    addCoachMessage(name + ': todavía no hay referencias comparables para esta variante. Registra una sesión con sus cifras para poder comparar.');
+    return;
+  }
+  const lines = rows.map(row => '• ' + dateShort.format(new Date(row.iso)) + ': ' + coachValues(row.entry) + (row.entry.note ? '\n  Nota: ' + row.entry.note : ''));
+  let comparison = 'Necesito una segunda referencia comparable para mostrar cambios.';
+  if (rows.length > 1) {
+    const a = rows[0].entry, b = rows[1].entry;
+    const deltas = [['load', 'kg'], ['sets', 'series'], ['reps', 'reps']].filter(([key]) => num(a[key]) !== '' && num(b[key]) !== '')
+      .map(([key, unit]) => { const delta = num(a[key]) - num(b[key]); return (delta > 0 ? '+' : '') + nf1.format(delta) + ' ' + unit; });
+    comparison = 'Cambio frente a la referencia anterior: ' + (deltas.join(' · ') || 'faltan campos comparables') + '. No equivale por sí solo a ganar o perder fuerza.';
+  }
+  const planRow = buildCoachPlan($('coachMode').value, routineId).rows.find(row => row.id === exercise.id);
+  addCoachMessage(name + ' · últimas referencias\n' + lines.join('\n') + '\n' + comparison + '\nSiguiente referencia: ' + coachValues(planRow.values) + '. ' + planRow.reason);
+}
+
+function invalidateCoachPlan() {
+  coachPlan = null;
+  $('coachPlanActions').hidden = true;
+}
+
+/* --- Conversación: contexto explícito, intención y respuestas compuestas --- */
+
+function newCoachConversation() {
+  return { goal: '', experience: '', minutes: null, days: null, weight: null, readiness: '', focus: null, pending: null, awaiting: '', lastTopics: [], reports: {}, concise: false, detailed: false };
+}
+
+function coachCatalog() {
+  return SPLIT.flatMap(routine => exercisesOf(routine.id).filter(exercise => String(exercise.name || '').trim())
+    .map(exercise => Object.assign({}, exercise, { routineId: routine.id })));
+}
+
+function coachFocus() {
+  const focus = coachConversation.focus;
+  return focus && coachCatalog().find(exercise => exercise.id === focus.id && exercise.routineId === focus.routineId);
+}
+
+function addCoachFollowups(questions) {
+  const message = $('coachMessages').lastElementChild;
+  if (!message) return;
+  const choices = el('div', { class: 'coach__choices', 'aria-label': 'Continuar la conversación' });
+  questions.slice(0, 3).forEach(question => choices.append(el('button', {
+    type: 'button', text: question, dataset: { coachFollowup: question }
+  })));
+  message.append(choices);
+}
+
+function coachRespond(text, questions = []) {
+  addCoachMessage(text);
+  addCoachFollowups(questions);
+}
+
+function updateCoachProfile(intent, raw = intent) {
+  const changes = [];
+  const positive = intent.replace(/\bno (?:quiero|busco) (?:ganar |perder )?(?:fuerza|musculo|masa muscular|grasa|peso|adelgazar)\b/g, '')
+    .replace(/\bno (?:ganar|perder) (?:fuerza|musculo|masa muscular|grasa|peso)\b/g, '')
+    .replace(/\bno soy (?:principiante|novato)\b/g, '');
+  const goalNegations = { 'ganar músculo': /no (?:quiero |busco )?(?:ganar )?(?:musculo|masa muscular)/, 'ganar fuerza': /no (?:quiero |busco )?(?:ganar )?fuerza/, 'perder grasa': /no (?:quiero |busco )?(?:perder (?:grasa|peso)|adelgazar)/ };
+  if (coachConversation.goal && goalNegations[coachConversation.goal].test(intent)) {
+    coachConversation.goal = '';
+    changes.push('Dejo de usar el objetivo anterior. Dime cuál prefieres ahora.');
+  }
+  if (/\b(?:estoy (?:cansad[oa]|agotad[oa])|he dormido mal|dormi mal|tengo fatiga)\b/.test(intent)) coachConversation.readiness = 'fatigue';
+  if (/\b(?:estoy (?:descansad[oa]|recuperad[oa])|hoy estoy bien|ya no estoy cansad[oa])\b/.test(intent)) coachConversation.readiness = '';
+  const goals = [
+    ['ganar músculo', /(?:quiero|busco|objetivo|para mi).*?(?:muscul|hipertrof|masa)|^(?:hipertrofia|ganar musculo)$/],
+    ['ganar fuerza', /(?:quiero|busco|objetivo).*?(?:fuerza|fuerte)|^(?:fuerza|ganar fuerza)$/],
+    ['perder grasa', /(?:quiero|busco|objetivo).*?(?:perder grasa|perder peso|adelgaz|definir)|^(?:perder grasa|adelgazar|definir)$/]
+  ];
+  goals.forEach(([goal, pattern]) => {
+    if (pattern.test(positive)) { coachConversation.goal = goal; changes.push('Objetivo: ' + goal + '.'); }
+  });
+  if (/\b(?:soy|estoy empezando|nivel|llevo poco|acabo de empezar)\b.*(?:principiante|novato)|^soy principiante$|^estoy empezando$/.test(positive)) {
+    coachConversation.experience = 'principiante';
+    changes.push('Tendré en cuenta que estás empezando.');
+  } else if (/no soy principiante|(?:llevo|entreno desde hace) \d+ anos|soy (?:avanzado|intermedio)/.test(intent)) {
+    coachConversation.experience = 'con experiencia';
+    changes.push('Tendré en cuenta que ya tienes experiencia.');
+  }
+  const minutes = intent.match(/(?:tengo|dispongo de|solo tengo|sesion de)\s*(\d{1,3})\s*(?:minutos|min)\b/);
+  if (minutes && +minutes[1] >= 5 && +minutes[1] <= 180) {
+    coachConversation.minutes = +minutes[1];
+    changes.push('Tiempo disponible: ' + minutes[1] + ' minutos; no es una duración garantizada.');
+  }
+  const days = intent.match(/(?:puedo (?:ir|entrenar)|entreno|tengo disponibles)\s*(?:los )?(\d)\s*dias/);
+  if (days && +days[1] >= 1 && +days[1] <= 7) {
+    coachConversation.days = +days[1];
+    changes.push('Disponibilidad que me has indicado: ' + days[1] + ' días por semana.');
+  }
+  const weight = String(raw).trim().toLowerCase().match(/(?:^(?:yo )?peso|\bmi peso(?: corporal)?(?: es| de)?)\s*(\d{2,3}(?:[.,]\d+)?)\s*(?:kg|kilos)\b/);
+  if (weight && +weight[1].replace(',', '.') >= 30 && +weight[1].replace(',', '.') <= 300) {
+    coachConversation.weight = +weight[1].replace(',', '.');
+    changes.push('Peso corporal indicado: ' + kg(coachConversation.weight) + '. Solo lo usaré en esta conversación.');
+  }
+  return changes;
+}
+
+function findCoachExercises(intent) {
+  const catalog = coachCatalog();
+  // Una mención específica gana a una palabra compartida como «press» o «curl».
+  const scored = catalog.map(exercise => {
+    const guide = COACH_KNOWLEDGE.exercises[exercise.id];
+    const names = [exercise.name, selectedExerciseName(exercise, draftOf(exercise.routineId, exercise.id))].concat(guide ? guide.aliases : []);
+    let score = 0;
+    names.forEach(name => {
+      const phrase = normalizeCoachText(name);
+      if (phrase && (' ' + intent + ' ').includes(' ' + phrase + ' ')) score = Math.max(score, phrase.split(' ').length * 10);
+    });
+    if (!score) {
+      const tokens = normalizeCoachText(exercise.name).split(' ').filter(word => word.length > 3 && !['maquina', 'polea', 'barra', 'hombro'].includes(word));
+      score = tokens.reduce((sum, word) => sum + (intent.split(' ').includes(word) ? 1 : 0), 0);
+    }
+    return { exercise, score };
+  });
+  const best = Math.max(0, ...scored.map(item => item.score));
+  if (!best) return [];
+  const matches = scored.filter(item => item.score === best).map(item => item.exercise);
+  const local = matches.filter(exercise => exercise.routineId === state.activeId);
+  return local.length ? local : matches;
+}
+
+function coachTopicMatches(intent) {
+  return COACH_KNOWLEDGE.topics.filter(topic => topic.patterns.some(pattern => pattern.test(intent)));
+}
+
+function coachPerformance(text) {
+  const normalized = String(text).toLowerCase().replace(/,/g, '.');
+  const scheme = normalized.match(/\b(\d{1,2})\s*[x×]\s*(\d{1,3})\b/);
+  const series = normalized.match(/\b(\d{1,2})\s*series?\b/);
+  const reps = normalized.match(/\b(\d{1,3})\s*(?:reps?|repeticiones)\b/) || normalized.match(/series?\s*(?:de|a)\s*(\d{1,3})\b/);
+  const load = normalized.match(/\b(\d{1,3}(?:\.\d{1,2})?)\s*(?:kg|kilos)\b/);
+  const values = { load: load ? +load[1] : null, sets: series ? +series[1] : scheme ? +scheme[1] : null, reps: reps ? +reps[1] : scheme ? +scheme[2] : null };
+  if (!(values.load >= 0 && values.load !== null && values.sets > 0 && values.sets <= 50 && values.reps > 0 && values.reps <= 200)) return null;
+  return values;
+}
+
+function coachReportedEffort(exerciseId) {
+  const text = normalizeCoachText(coachConversation.reports[exerciseId] || '');
+  const numbers = { cero: 0, una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5 };
+  const hits = [...text.matchAll(/\b(?:rir\s*(?:de\s*)?|me (?:quedan|quedaban|sobran|sobraban)\s*)(\d|cero|una|uno|dos|tres|cuatro|cinco)\b/g)];
+  if (!hits.length) return /(?:al fallo|no (?:me quedaban|podia hacer) mas)/.test(text) ? 0 : null;
+  const value = hits[hits.length - 1][1];
+  return Object.hasOwn(numbers, value) ? numbers[value] : Number(value);
+}
+
+function showCoachCalculation(values, exercise) {
+  coachConversation.awaiting = exercise ? 'effort' : '';
+  const volume = values.load * values.sets * values.reps;
+  coachRespond((exercise ? exercise.name + '\n' : '') + 'Con las cifras que has escrito: ' + kg(values.load) + ' × ' + values.sets + ' series × ' + values.reps + ' repeticiones = ' + kg(volume) + ' de tonelaje.\n'
+    + 'He interpretado series × repeticiones; si querías decir otra cosa, corrígeme. Es una cuenta, no una medida de calidad, esfuerzo o calorías. No he guardado esas cifras como entrenamiento.\n'
+    + 'Para valorar si conviene cambiar la referencia, dime si completaste el recorrido con control y cuántas repeticiones crees que te quedaban.', ['¿Qué es el RIR?', '¿Cómo registro el esfuerzo?']);
+}
+
+function coachReference(exercise) {
+  if (!exercise) return '';
+  const name = selectedExerciseName(exercise, draftOf(exercise.routineId, exercise.id));
+  const rows = coachHistory(exercise.routineId, name, exercise.id, exercise.legacyName);
+  return rows.length
+    ? 'En tu registro, ' + name + ': ' + coachValues(rows[0].entry) + ' el ' + dateShort.format(new Date(rows[0].iso)) + '.'
+    : 'Para ' + name + ' todavía no hay una referencia comparable en tu historial.';
+}
+
+function coachPersonalize(topic, exercise) {
+  const parts = [];
+  if (coachConversation.goal && ['rest', 'load', 'reps', 'frequency', 'order', 'muscle', 'strength', 'fatloss'].includes(topic.id)) {
+    parts.push('Con tu objetivo de ' + coachConversation.goal + ', prioriza ' + (coachConversation.goal === 'ganar fuerza' ? 'repetir el movimiento y llegar con margen a las series importantes.' : 'un trabajo que puedas sostener y comparar a lo largo del tiempo.'));
+  }
+  if (exercise && ['load', 'reps', 'rest', 'effort', 'plateau', 'technique', 'warmup', 'logging'].includes(topic.id)) parts.push(coachReference(exercise));
+  if (['technique', 'warmup'].includes(topic.id) && exercise) {
+    const guide = COACH_KNOWLEDGE.exercises[exercise.id];
+    parts.push(guide ? guide.cue : 'Es un ejercicio extra: dime qué movimiento y material utilizas para no asumir una técnica por su nombre.');
+  }
+  if (topic.id === 'protein') {
+    if (coachConversation.weight) {
+      const weight = coachConversation.weight;
+      parts.push('Con los ' + kg(weight) + ' que me has indicado, ese intervalo general equivale a unos ' + nf0.format(weight * 1.4) + '–' + nf0.format(weight * 2) + ' g al día. Es una cuenta orientativa para un adulto sano, no una valoración de tus necesidades.');
+    } else {
+      parts.push('Si eres un adulto sano y quieres ver la cuenta orientativa, dime «peso 80 kg», usando tu peso real. No confundiré la carga de un ejercicio con tu peso corporal.');
+    }
+  }
+  if (topic.id === 'frequency' && coachConversation.days) parts.push('Me has dicho ' + coachConversation.days + ' días por semana. Puedes recorrer A → B → C en ese orden y continuar el ciclo la semana siguiente; eso describe el ciclo existente, que no cubre piernas.');
+  if (topic.id === 'order' && exercise) parts.push('Si ' + exercise.name + ' es tu prioridad, compara sus referencias en una posición parecida dentro de la sesión.');
+  if (['load', 'effort'].includes(topic.id) && exercise) {
+    const report = coachConversation.reports[exercise.id];
+    if (report) parts.push('Además, me has contado: ' + report + '. Lo tengo como información del chat, sin añadirlo a tu historial.');
+    const effort = coachReportedEffort(exercise.id);
+    if (effort !== null) parts.push(effort <= 1
+      ? 'Has descrito poco o ningún margen (RIR ' + effort + '). La propuesta de progresión no añadirá repeticiones por defecto con esa información; revisa si hoy debes reducir la exigencia.'
+      : 'Has estimado RIR ' + effort + '. Eso sugiere margen según tu percepción, pero no confirma que debas subir kilos. Compara también técnica, recorrido y todas las series.');
+    if (coachConversation.experience === 'principiante') parts.push('Como estás empezando, construye primero una referencia controlada; no necesitas buscar tu máximo.');
+  }
+  if (topic.id === 'rest') parts.push('Como punto de partida práctico, puedes cronometrar unos dos minutos y comprobar si recuperas el control para la siguiente serie. Amplía la pausa cuando lo necesites; ese tiempo no es una regla universal.');
+  if (topic.id === 'recovery') {
+    const latest = coachSessions()[0];
+    if (latest) parts.push('Tu última sesión finalizada fue ' + relativeDay(latest.iso) + '; esa fecha por sí sola no determina si hoy conviene entrenar.');
+  }
+  if (topic.id === 'alternatives' && exercise && exercise.variants) parts.push('En ' + exercise.name + ' tienes estas variantes: ' + exercise.variants.join(', ') + '. Selecciónala en el registro; cada una conserva sus referencias.');
+  if (topic.id === 'alternatives' && exercise && COACH_KNOWLEDGE.substitutions[exercise.id]) parts.push('Opciones para valorar: ' + COACH_KNOWLEDGE.substitutions[exercise.id] + '. Registra un ejercicio distinto como extra y empieza su propia referencia.');
+  return parts.join('\n');
+}
+
+function showCoachKnowledge(topics, exercise) {
+  const profileTopics = ['beginner', 'muscle', 'strength', 'fatloss'];
+  const specific = topics.filter(topic => !profileTopics.includes(topic.id));
+  if (specific.length) topics = specific;
+  coachConversation.lastTopics = topics.map(topic => topic.id);
+  const used = new Set();
+  const blocks = topics.slice(0, 3).map(topic => {
+    let body = topic.text;
+    if (!coachConversation.detailed || coachConversation.concise) body = body.split(/(?<=\.)\s/).slice(0, coachConversation.concise ? 2 : 3).join(' ');
+    const personalized = coachPersonalize(topic, exercise).split('\n').filter(line => {
+      if (!line || used.has(line)) return false;
+      used.add(line);
+      return true;
+    }).join('\n');
+    return topic.title + (exercise && ['technique', 'warmup', 'load', 'reps', 'rest', 'effort'].includes(topic.id) ? ' · ' + selectedExerciseName(exercise, draftOf(exercise.routineId, exercise.id)) : '') + '\n' + body + (personalized ? '\n\n' + personalized : '');
+  });
+  const needsExercise = !exercise && topics.some(topic => ['technique', 'load', 'plateau'].includes(topic.id));
+  if (needsExercise) blocks.push('¿De qué ejercicio hablamos? Puedes escribir su nombre, aunque esté en otro bloque.');
+  if (topics.length > 3) blocks.push('He respondido a los tres primeros temas; pregunta por separado el que quieras ampliar.');
+  coachRespond(blocks.join('\n\n'), exercise
+    ? ['¿Cómo va este ejercicio?', '¿Qué carga uso?', '¿Cómo registro el esfuerzo?']
+    : needsExercise ? ['Consultar ejercicios', 'Planificar sesión'] : ['¿Cómo voy esta semana?', 'Planificar sesión']);
+}
+
+function coachChooseExercise(exercise, question = '') {
+  coachExerciseId = exercise.id;
+  coachConversation.focus = { id: exercise.id, routineId: exercise.routineId || state.activeId };
+  coachConversation.pending = null;
+  const performance = coachPerformance(question);
+  if (performance && /tonelaje|volumen|calcula|he hecho|he completado|hice/.test(normalizeCoachText(question))) {
+    coachConversation.reports[exercise.id] = question;
+    showCoachCalculation(performance, exercise);
+    return;
+  }
+  const topics = coachTopicMatches(normalizeCoachText(question));
+  if (topics.length) showCoachKnowledge(topics, Object.assign({}, exercise, { routineId: exercise.routineId || state.activeId }));
+  else showCoachExercise(exercise, exercise.routineId || state.activeId);
+}
+
+function coachHasPain(intent) {
+  // La negación solo afecta a su propia frase, no a otros síntomas del mensaje.
+  const stripped = intent.replace(/\b(?:sin|no tengo|no siento|no hay) (?:dolor|molestias?|mareos?)\b/g, '')
+    .replace(/\bno me duele\b/g, '').replace(/\b(?:evitar|prevenir) (?:lesiones|dolor)\b/g, '');
+  return /\b(?:dolor|duele|duelen|lesion|lesionado|lesionada|mareo|mareado|pinchazo|molestia|molestias|desmayo)\b/.test(stripped);
 }
 
 function answerCoach(raw) {
-  const text = String(raw || '').trim();
+  const text = String(raw || '').trim().slice(0, 800);
   if (!text) return;
   addCoachMessage(text, true);
-  const intent = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  if (/plan|prepar|propon|sesion|entreno/.test(intent)) showCoachPlan();
-  else if (/estanc|progres|mejor|avance/.test(intent)) showCoachPlateaus();
-  else if (/toca|bloque|hoy|dia/.test(intent)) coachWelcome();
-  else if (/como|calcula|por que|criterio/.test(intent)) explainCoachPlan();
-  else addCoachMessage('Puedo ayudarte a “planificar la sesión”, “ver estancamientos”, decirte “qué toca hoy” o explicar “cómo lo calculo”. No envío tus datos ni consulto servicios externos.');
+  const intent = normalizeCoachText(text);
+  if (coachHasPain(intent)) {
+    invalidateCoachPlan();
+    coachRespond('Si aparece dolor, mareo o un pinchazo durante el ejercicio, detén ese ejercicio. No puedo saber la causa ni proponerte una carga segura a partir del chat. Si persiste, consulta a un profesional sanitario; si el síntoma es intenso o repentino, busca atención urgente.\nPuedes dejar constancia en las notas del registro. He retirado la propuesta pendiente.', ['Revisar borrador']);
+    return;
+  }
+  if (/\b(?:enfermedad|renal|embaraz|medicacion|diabetes|rehabilitacion|operacion)\b/.test(intent)) {
+    invalidateCoachPlan();
+    coachRespond('Ese contexto puede cambiar qué ejercicio o alimentación te conviene. Necesitas una pauta de quien conoce tu situación clínica; no voy a calcular una carga, dieta o rehabilitación desde tus registros. Puedo ayudarte a consultar lo que has anotado para revisarlo con ese profesional.', ['Última sesión', 'Revisar borrador']);
+    return;
+  }
+  if (/^(?:olvida(?: lo que te he dicho)?|reinicia(?:r)? (?:el )?chat|nueva conversacion|borra (?:el )?chat)$/.test(intent)) { resetCoachChat(); return; }
+  if (/mas (?:corto|breve)|resumelo/.test(intent)) { coachConversation.concise = true; coachConversation.detailed = false; }
+  if (/mas (?:detalle|largo)|explicamelo mejor|amplia/.test(intent)) { coachConversation.concise = false; coachConversation.detailed = true; }
+  const changes = updateCoachProfile(intent, text);
+  const matches = findCoachExercises(intent);
+  if (matches.length > 1) { coachExerciseChoices(matches, text); return; }
+  if (matches.length === 1) {
+    coachExerciseId = matches[0].id;
+    coachConversation.focus = { id: matches[0].id, routineId: matches[0].routineId };
+  }
+  let focus = coachFocus();
+  const shortEffort = /^(?:[0-5]|cero|una|uno|dos|tres|cuatro|cinco)(?: repeticiones)?$/.test(intent);
+  if (focus && coachConversation.awaiting === 'effort' && shortEffort) {
+    const report = 'Me quedan ' + intent + ' repeticiones';
+    coachConversation.reports[focus.id] = ((coachConversation.reports[focus.id] || '') + ' ' + report).trim().slice(-1200);
+    coachConversation.awaiting = '';
+    showCoachKnowledge(COACH_KNOWLEDGE.topics.filter(topic => topic.id === 'effort'), focus);
+    return;
+  }
+  if (!shortEffort) coachConversation.awaiting = '';
+  if (focus && /\b(?:he hecho|he completado|hoy hice|me quedan|me quedaban|me sobran|me sobraban|rir)\b/.test(intent)) {
+    coachConversation.reports[focus.id] = ((coachConversation.reports[focus.id] || '') + ' ' + text).trim().slice(-1200);
+  }
+  const topics = coachTopicMatches(intent);
+  if (!matches.length && (topics.some(topic => topic.id === 'legs') || topics.some(topic => topic.id === 'technique') && !/\b(?:lo|este|ese|eso)\b/.test(intent))) {
+    focus = null;
+    coachConversation.focus = null;
+    coachExerciseId = null;
+  }
+  if (changes.length) {
+    addCoachMessage(changes.join('\n'));
+    $('coachContext').textContent = coachContextLabel();
+  }
+  if (/^(?:ver|revisar|analizar) estancamientos$/.test(intent)) {
+    showCoachPlateaus();
+    addCoachFollowups(['¿Cómo reviso un estancamiento?', 'Consultar ejercicios']);
+    return;
+  }
+  if (/\b(?:que toca|bloque actual|siguiente bloque)\b/.test(intent)) { coachWelcome(); return; }
+  const performance = coachPerformance(text);
+  if (performance && /\b(?:tonelaje|volumen|calcula|he hecho|he completado|hice)\b/.test(intent)) {
+    showCoachCalculation(performance, focus);
+    return;
+  }
+  // Preguntas específicas antes de órdenes genéricas que contengan «sesión».
+  if (topics.length) {
+    if (!focus && topics.some(topic => ['technique', 'load', 'plateau'].includes(topic.id))) coachConversation.pending = text;
+    showCoachKnowledge(topics, focus);
+    return;
+  }
+  if (/mas (?:corto|breve|detalle|largo)|resumelo|explicamelo mejor|amplia/.test(intent) && coachConversation.lastTopics.length) {
+    showCoachKnowledge(COACH_KNOWLEDGE.topics.filter(topic => coachConversation.lastTopics.includes(topic.id)), focus);
+    return;
+  }
+  if (/^(?:y )?(?:por que|por que eso|explicamelo)$/.test(intent)) {
+    coachRespond('Las respuestas combinan una guía general incluida en la app y los datos que sí has registrado o contado. No deduzco tu técnica ni recuperación de los kilos. '
+      + (focus ? coachReference(focus) : 'Cuando concretas un ejercicio puedo comprobar qué referencias comparables hay.')
+      + '\nSi preguntas por una propuesta aplicada al borrador, puedo explicar cada regla.', ['¿Cómo funciona?', 'Consultar ejercicios']);
+    return;
+  }
+  if (/\b(ultima sesion|ultimo entrenamiento|ultima vez|que hice)\b/.test(intent)) {
+    showCoachLastSession(matches.length === 1 ? matches[0].routineId : state.activeId);
+    return;
+  }
+  if (/\b(?:resumen|balance|tonelaje|volumen|esta semana|este mes)\b/.test(intent)) {
+    showCoachSummary(/este mes/.test(intent) ? 'month' : /mes|mensual|30 dias/.test(intent) ? 30 : 7);
+    return;
+  }
+  if (/\b(?:borrador|anotado|falta|faltan|revisar)\b/.test(intent)) { showCoachDraft(); return; }
+  if (/\b(?:estancamientos|progresion|progreso|avance|mejoro)\b/.test(intent) && !focus) { showCoachPlateaus(); return; }
+  if (/\b(?:calcula|calculado|criterio|criterios|como funciona)\b/.test(intent)) { explainCoachPlan(); return; }
+  if (/\b(?:plan|planificar|prepara|preparar|propuesta|sesion corta|menos series|entreno|entrenar hoy)\b/.test(intent)) {
+    showCoachPlan(/corta|menos|poco tiempo/.test(intent) || coachConversation.minutes && coachConversation.minutes <= 30 ? 'short' : $('coachMode').value);
+    return;
+  }
+  if (/\b(?:toca|bloque|hoy|dia)\b/.test(intent) && !focus && !changes.length) { coachWelcome(); return; }
+  if (focus && (matches.length || /\b(?:este|ese|carga|peso|repeticiones|progreso|como va|y la|y el)\b/.test(intent))) {
+    showCoachExercise(focus, focus.routineId);
+    addCoachFollowups(['¿Cómo lo hago?', '¿Qué carga uso?', '¿Cuánto descanso entre series?']);
+    return;
+  }
+  if (/\b(?:ejercicio|ejercicios|comparar|comparacion|como voy)\b/.test(intent)) { coachExerciseChoices(coachCatalog(), coachConversation.pending || text); return; }
+  if (changes.length) {
+    coachRespond('Lo tendré presente mientras sigamos en este chat. ' + (!coachConversation.goal ? '¿Tu objetivo principal es ganar músculo, fuerza o perder grasa?' : '¿Qué ejercicio o duda quieres revisar con ese objetivo?'), ['¿Cuántas series hago?', 'Planificar sesión']);
+  } else if (/^(?:hola|buenas|buenos dias|hey|gracias|vale|ok|si)$/.test(intent)) {
+    coachRespond(/gracias/.test(intent) ? 'Cuando quieras seguimos. ¿Qué te gustaría revisar ahora?' : 'Hola, ' + currentUser.name + '. Puedo ayudarte con tus registros y dudas de gimnasio. ¿Qué quieres trabajar hoy?', ['Quiero ganar músculo', '¿Cómo voy esta semana?', 'Planificar sesión']);
+  } else {
+    coachRespond('No tengo una respuesta fiable para «' + text + '» con la guía disponible. Para concretar, dime el ejercicio y si quieres revisar técnica, carga, descansos o progreso. También puedo explicar alimentación, esfuerzo y cómo organizar el entrenamiento. Si falta información, prefiero pedirla a inventar una respuesta.', ['Consultar ejercicios', '¿Qué es el RIR?', '¿Cómo caliento?']);
+  }
+}
+
+function resetCoachChat() {
+  coachConversation = newCoachConversation();
+  coachExerciseId = null;
+  coachUndo = null;
+  $('undoCoachPlan').hidden = true;
+  invalidateCoachPlan();
+  $('coachMode').value = 'repeat';
+  $('coachApplyMode').value = 'fill';
+  $('coachMessages').replaceChildren();
+  coachWelcome();
+  $('coachInput').value = '';
+  $('coachInput').focus();
 }
 
 async function applyCoachPlan() {
-  if (!coachPlan || coachPlan.routine.id !== state.activeId) {
+  if (!coachPlan || coachPlan.userId !== currentUser.id || coachPlan.snapshot !== coachSnapshot()) {
+    addCoachMessage('El registro ha cambiado. He actualizado la propuesta: revísala antes de aplicarla.');
     showCoachPlan();
     return;
   }
+  const plan = coachPlan;
   const current = state.draft[state.activeId] || {};
-  const written = Object.values(current).some(row => row.load || row.sets || row.reps || row.note);
-  if (written) {
+  const replace = $('coachApplyMode').value === 'replace';
+  const written = Object.values(current).some(row => row.load !== '' || row.sets !== '' || row.reps !== '');
+  if (written && replace) {
     const ok = await confirmAction('Aplicar propuesta',
-      'Se sustituye lo que hayas anotado hoy en el bloque ' + coachPlan.routine.code + '. Después podrás editar cualquier valor.',
+      'Se sustituirán las cifras del borrador del bloque ' + plan.routine.code + '. Las notas se conservan. Podrás deshacerlo desde el entrenador.',
       'Aplicar propuesta');
-    if (!ok) return;
+    if (!ok) { openCoach(); return; }
+    if (plan.snapshot !== coachSnapshot()) { invalidateCoachPlan(); openCoach(); return; }
   }
-  const draft = {};
-  coachPlan.rows.forEach(row => { draft[row.id] = Object.assign({}, row.values); });
+  const before = JSON.stringify(current);
+  const draft = JSON.parse(before);
+  plan.rows.forEach(row => {
+    const values = draft[row.id] || {};
+    // Nunca mezclar cifras de variantes distintas, ni siquiera al completar huecos.
+    if (!replace && values.variant && values.variant !== row.values.variant) return;
+    ['load', 'sets', 'reps', 'variant'].forEach(key => {
+      if (row.values[key] !== undefined && (replace || values[key] === '' || values[key] == null)) values[key] = row.values[key];
+    });
+    draft[row.id] = values;
+  });
   state.draft[state.activeId] = draft;
+  coachUndo = { userId: currentUser.id, routineId: state.activeId, before, after: JSON.stringify(draft) };
+  $('undoCoachPlan').hidden = false;
+  invalidateCoachPlan();
   saveNow();
   renderLog();
   $('coachDialog').close();
   toast('Propuesta aplicada · revisa las cargas antes de empezar');
+}
+
+function undoCoachPlan() {
+  if (!coachUndo || coachUndo.userId !== currentUser.id || coachUndo.routineId !== state.activeId) return;
+  if (JSON.stringify(state.draft[state.activeId]) !== coachUndo.after) {
+    addCoachMessage('Has editado el borrador después de aplicar la propuesta. No lo deshago para conservar esas anotaciones.');
+  } else {
+    state.draft[state.activeId] = JSON.parse(coachUndo.before);
+    saveNow();
+    renderLog();
+    invalidateCoachPlan();
+    addCoachMessage('Propuesta deshecha. He recuperado tu borrador anterior.');
+  }
+  coachUndo = null;
+  $('undoCoachPlan').hidden = true;
+  $('coachInput').focus();
 }
 
 function applyRoutineAccent() {
@@ -2337,7 +2861,14 @@ function bindEvents() {
     const prompts = {
       plan: 'Planificar la sesión',
       plateau: 'Ver estancamientos',
-      today: '¿Qué toca hoy?'
+      today: '¿Qué toca hoy?',
+      summary: 'Resumen semanal',
+      draft: 'Revisar borrador',
+      exercises: 'Consultar ejercicios',
+      last: 'Última sesión',
+      technique: '¿Cómo hago este ejercicio?',
+      rest: '¿Cuánto descanso entre series?',
+      effort: '¿Qué es el RIR?'
     };
     answerCoach(prompts[button.dataset.coachPrompt]);
   });
@@ -2348,8 +2879,27 @@ function bindEvents() {
     input.value = '';
     input.focus();
   });
+  $('coachInput').addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    $('coachForm').requestSubmit();
+  });
+  $('resetCoachChat').addEventListener('click', resetCoachChat);
   $('applyCoachPlan').addEventListener('click', applyCoachPlan);
   $('explainCoachPlan').addEventListener('click', explainCoachPlan);
+  $('coachMode').addEventListener('change', () => showCoachPlan());
+  $('undoCoachPlan').addEventListener('click', undoCoachPlan);
+  $('coachMessages').addEventListener('click', event => {
+    const followup = event.target.closest('[data-coach-followup]');
+    if (followup) { answerCoach(followup.dataset.coachFollowup); $('coachInput').focus(); return; }
+    const button = event.target.closest('[data-coach-exercise]');
+    if (!button) return;
+    const exercise = coachCatalog().find(item => item.id === button.dataset.coachExercise && item.routineId === button.dataset.coachRoutine);
+    if (!exercise) return;
+    addCoachMessage(button.textContent, true);
+    coachChooseExercise(exercise, button.dataset.coachQuestion);
+    $('coachInput').focus();
+  });
 
   $('splitList').addEventListener('click', event => {
     const button = event.target.closest('[data-routine]');

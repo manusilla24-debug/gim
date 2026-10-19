@@ -1,7 +1,7 @@
 /* Service worker: deja la aplicación utilizable sin conexión.
    Al cambiar archivos, sube VERSION para que se renueve la caché. */
 
-const VERSION = 'gim-2026-10-19-selector-historial-sistema';
+const VERSION = 'gim-2026-10-19-entrenador-conversacional';
 const FONTS = 'gim-fuentes-1';
 
 const SHELL = [
@@ -9,6 +9,7 @@ const SHELL = [
   '/index.html',
   '/assets/styles.css',
   '/assets/app.js',
+  '/assets/coach-knowledge.js',
   '/assets/boot.js',
   '/assets/icon.svg',
   '/assets/icon-192.png',

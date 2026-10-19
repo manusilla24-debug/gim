@@ -1435,7 +1435,7 @@ dialog::backdrop {
   width: min(620px, calc(100vw - 24px));
   max-height: min(760px, calc(100dvh - 24px));
 }
-.coach { display: grid; grid-template-rows: auto minmax(180px, 1fr) auto auto auto auto; max-height: inherit; overflow: hidden; }
+.coach { display: grid; grid-template-rows: auto minmax(120px, 1fr) auto auto auto auto auto; max-height: inherit; overflow: hidden; }
 .coach__head {
   display: flex;
   align-items: center;
@@ -1451,6 +1451,7 @@ dialog::backdrop {
   line-height: 1;
   text-transform: uppercase;
 }
+.coach__head-actions { display: flex; gap: 4px; flex-shrink: 0; }
 .coach__messages {
   display: flex;
   flex-direction: column;
@@ -1478,12 +1479,27 @@ dialog::backdrop {
   background: var(--accent-wash);
 }
 .coach__speaker { margin-bottom: 4px; font-size: 11px; color: var(--muted); }
+.coach__context { margin-top: 8px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.coach__bubble, .coach__card { overflow-wrap: anywhere; }
+.coach__cards { display: grid; gap: 8px; margin-top: 8px; }
+.coach__card { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 13px; }
+.coach__card h3 { font-size: 14px; color: var(--ink); }
+.coach__card p { margin-top: 6px; }
+.coach__target { color: var(--accent); font-weight: 700; }
+.coach__reason { color: var(--muted); }
+.coach__choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.coach__choices button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.coach__settings { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 14px; border-top: 1px solid var(--line); background: var(--surface); }
+.coach__settings label, .coach__plan-actions label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--muted); }
+.coach__settings label { flex: 1; min-width: 0; }
+.coach__settings label, .coach__plan-actions label { display: grid; grid-template-columns: auto minmax(0, 1fr); }
+.coach__settings select, .coach__plan-actions select { min-height: 44px; max-width: 100%; min-width: 0; }
 .coach__suggestions { display: flex; gap: 8px; padding: 10px 14px; overflow-x: auto; border-top: 1px solid var(--line); }
 .coach__suggestions { scrollbar-width: none; }
 .coach__suggestions::-webkit-scrollbar { display: none; }
 .coach__suggestions button {
   flex: 0 0 auto;
-  min-height: 38px;
+  min-height: 44px;
   padding: 7px 11px;
   border: 1px solid var(--line-strong);
   border-radius: 99px;
@@ -1492,7 +1508,12 @@ dialog::backdrop {
   cursor: pointer;
 }
 .coach__plan-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 14px 10px; }
+.coach__plan-actions label { flex-basis: 100%; }
 .coach__form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); background: var(--surface); }
+.coach__form textarea { min-height: 48px; max-height: 100px; resize: vertical; line-height: 1.4; }
+.coach__form .btn { align-self: end; }
+.coach__choices button { text-align: left; font-size: 12px; }
+.coach__choices button:hover { background: var(--accent-wash); border-color: var(--accent); }
 .coach__note { padding: 0 14px 12px; font-size: 11px; color: var(--muted); }
 
 @media (max-width: 640px) {
@@ -1506,19 +1527,27 @@ dialog::backdrop {
     border: 0;
     border-radius: 0;
   }
-  .coach { width: 100%; height: 100dvh; max-height: none; grid-template-rows: auto minmax(0, 1fr) auto auto auto auto; }
+  .coach { width: 100%; height: 100dvh; max-height: none; grid-template-rows: auto minmax(0, 1fr) auto auto auto auto auto; }
   .coach__head { padding: calc(12px + env(safe-area-inset-top, 0px)) 14px 12px; background: var(--surface); }
   .coach__head .eyebrow { font-size: 10px; }
   .coach__title { font-size: 25px; }
   .coach__messages { min-height: 0; padding: 14px; }
   .coach__message { max-width: 92%; }
   .coach__suggestions { padding: 9px 12px; background: var(--surface); }
-  .coach__suggestions button { min-height: 36px; padding: 6px 10px; font-size: 13px; }
+  .coach__suggestions button { min-height: 44px; padding: 6px 10px; font-size: 13px; }
   .coach__plan-actions { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); padding: 0 12px 10px; background: var(--surface); }
   .coach__plan-actions .btn { min-width: 0; padding-inline: 8px; font-size: 12px; line-height: 1.2; }
+  .coach__plan-actions label { grid-column: 1 / -1; }
+  .coach__settings { padding: 6px 12px; }
   .coach__form { grid-template-columns: minmax(0, 1fr) 82px; padding: 10px 12px; }
   .coach__form .btn { padding-inline: 8px; }
   .coach__note { padding: 0 12px calc(9px + env(safe-area-inset-bottom, 0px)); background: var(--surface); font-size: 10px; }
+}
+
+@media (max-height: 520px) {
+  .coach-dialog { overflow-y: auto; }
+  .coach { height: auto; max-height: none; overflow: visible; }
+  .coach__messages { min-height: 140px; max-height: 45dvh; }
 }
 
 /* En pantalla táctil, nada por debajo del pulgar */

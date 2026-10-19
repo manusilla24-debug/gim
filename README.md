@@ -63,9 +63,40 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   de los ejercicios, sin flotar sobre los campos al desplazarse.
 - **Resumen directo** con el número de sesiones y la última actividad realizada.
 - **Copiar la última sesión** del bloque para partir de lo que ya se hizo.
-- **Entrenador local**: planifica el bloque del día a partir de las últimas
-  sesiones, señala posibles estancamientos y puede aplicar una propuesta al
-  borrador. El análisis funciona sin conexión y no envía el historial fuera.
+- **Entrenador local**: consulta ejercicios por nombre, compara sus tres últimas
+  referencias con fechas y notas, recupera la última sesión del bloque, resume
+  las sesiones y el tonelaje de los últimos siete o treinta días, o del mes actual, y revisa los
+  campos pendientes del borrador. Las coincidencias
+  ambiguas ofrecen botones para elegir (por ejemplo, los dos remos). Conserva el
+  ejercicio de la conversación para consultas como «¿Y la carga?».
+  Su guía conversacional cubre 24 temas: técnica, calentamiento, descansos,
+  series, RIR, cargas, recuperación, alternativas, organización, nutrición y
+  otros conceptos. Responde según la intención de la pregunta, puede combinar
+  hasta tres temas y consulta ejercicios de otros bloques sin cambiar el registro.
+  Recuerda temporalmente el objetivo, experiencia, tiempo disponible, días y peso
+  corporal que indiques explícitamente. Si describes fatiga o poco margen de
+  esfuerzo, no añade repeticiones a la propuesta de progresión. Distingue lo que
+  le cuentas de las sesiones guardadas. «He hecho 3×10 con 20,5 kg» permite
+  calcular 615 kg de tonelaje sin añadir una sesión. Las opciones para continuar
+  y las aclaraciones conservan la pregunta original. Puedes pedir respuestas
+  más breves o con más detalle y reiniciar el chat con el botón de su cabecera.
+  Prepara propuestas explicadas por ejercicio: repetir referencias, probar una
+  repetición más o reducir series. Separa variantes y deja vacíos los campos sin
+  referencia; no aumenta automáticamente los kilos ni deduce recuperación o
+  ganancias de fuerza de las cifras. Tres referencias iguales son una señal para
+  revisar, no un diagnóstico de estancamiento. Ante una consulta sobre dolor
+  retira la propuesta pendiente.
+  Al aplicar completa solo campos vacíos por defecto; sustituir cifras requiere
+  confirmación si ya hay anotaciones. Conserva notas y permite deshacer mientras
+  no se haya vuelto a editar el borrador. Si los datos cambian, exige revisar una
+  propuesta actualizada. El chat es temporal (máximo 60 mensajes), se reinicia al
+  recargar o cambiar de atleta/bloque, y no forma parte de las copias JSON. Al
+  cambiar de bloque conserva el objetivo y los datos de contexto del mismo atleta;
+  cambiar de atleta o iniciar una conversación nueva los elimina de la memoria.
+  Funciona sin conexión mediante reglas locales, sin IA remota ni envío del
+  historial. Las propuestas son referencias editables, no prescripciones físicas.
+  No contiene un modelo de lenguaje ni entiende cualquier pregunta libre: ante
+  dudas sin cobertura pide concretar. [Guía, ejemplos y fuentes](docs/entrenador.md).
 - **Instalable y sin conexión**: es una PWA con service worker; una vez abierta
   funciona en el gimnasio aunque no haya cobertura. En Chrome y Edge aparece el
   botón «Instalar» en el pie; en iPhone se añade desde *Compartir → Añadir a
@@ -91,6 +122,7 @@ recargar a media sesión no echa a nadie fuera.
 index.html                 documento
 assets/styles.css          sistema visual (tokens, retícula, componentes)
 assets/app.js              atletas, registro, gráfico e historial
+assets/coach-knowledge.js  guía y alias del entrenador sin conexión
 assets/boot.js             tema y pantalla inicial antes del primer pintado
 assets/icon.svg            icono vectorial
 assets/icon-*.png          iconos de la PWA (192, 512 y maskable)
@@ -128,6 +160,22 @@ Y abrir <http://localhost:8000>. `localhost` cuenta como contexto seguro, así
 que la PWA se puede probar entera.
 
 Al cambiar archivos, sube `VERSION` en `sw.js` para renovar la caché.
+
+Las comprobaciones del entrenador se ejecutan con Node, sin instalar paquetes:
+
+```bash
+node tests/coach.test.cjs
+node --check assets/app.js
+node --check assets/coach-knowledge.js
+node --check assets/boot.js
+node --check sw.js
+```
+
+Cubren referencias, separación de variantes, consultas, campos pendientes,
+conservación de notas, propuestas desactualizadas y deshacer sin pisar ediciones.
+También comprueban intención, contexto, preguntas múltiples, cálculos, negaciones
+y consultas a ejercicios de otros bloques sin cambiar el registro.
+El DOM mínimo de la prueba no sustituye la revisión del chat en el navegador.
 
 ## Desplegar en Vercel
 
