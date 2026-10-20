@@ -1287,6 +1287,14 @@ tbody td:first-child { font-family: var(--font-ui); }
 .calendar__day--b { border: 3px solid var(--routine-b); color: var(--ink); }
 .calendar__day--c { border: 3px solid var(--routine-c); color: var(--ink); }
 .calendar__day--multiple { border-color: var(--line-strong); }
+button.calendar__day { cursor: pointer; font-family: inherit; }
+button.calendar__day:hover { background: var(--accent-wash); }
+button.calendar__day:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media screen {
+  .entry.entry--highlight { outline: 3px solid var(--accent); outline-offset: -3px; }
+  .entry[tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
+  .entry.entry--highlight[tabindex="-1"]:focus { outline: 3px solid var(--accent); outline-offset: -3px; }
+}
 .calendar__markers {
   position: absolute;
   right: -1px;

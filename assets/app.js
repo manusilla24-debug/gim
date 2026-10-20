@@ -1441,14 +1441,37 @@ function renderCalendar() {
         )
       : null;
     cells.push(el('li', { class: 'calendar__cell' },
-      el('span', {
+      el(records.length ? 'button' : 'span', {
         class: classes.join(' '),
+        type: records.length ? 'button' : null,
+        onclick: records.length ? () => openHistoryDay(key) : null,
         'aria-current': key === today ? 'date' : null,
-        'aria-label': dayLong.format(date) + description
+        'aria-label': dayLong.format(date) + description + (records.length ? '. Ver en el historial' : '')
       }, String(day), markers)
     ));
   }
   $('calendarGrid').replaceChildren(...cells);
+}
+
+let historyHighlightTimer = null;
+
+function clearHistoryHighlight() {
+  clearTimeout(historyHighlightTimer);
+  historyHighlightTimer = null;
+  document.querySelectorAll('.entry--highlight').forEach(entry => entry.classList.remove('entry--highlight'));
+}
+
+function openHistoryDay(key) {
+  historyOrder = 'newest';
+  renderHistory();
+  selectTab('historial');
+  const entries = [...$('historyList').querySelectorAll('.entry')]
+    .filter(entry => entry.dataset.day === key);
+  if (!entries.length) return;
+  entries.forEach(entry => entry.classList.add('entry--highlight'));
+  entries[0].focus({ preventScroll: true });
+  entries[0].scrollIntoView({ block: 'center', behavior: 'instant' });
+  historyHighlightTimer = setTimeout(clearHistoryHighlight, 5000);
 }
 
 /* --- Panel de sesión ---------------------------------------------------- */
@@ -1613,6 +1636,7 @@ function historySessions(sessions, order) {
 }
 
 function renderHistory() {
+  clearHistoryHighlight();
   const host = $('historyList');
   const routine = ROUTINE_BY_ID.get(historyOrder);
   const sessions = historySessions(state.sessions, historyOrder);
@@ -1635,7 +1659,7 @@ function renderHistory() {
 
   const ledger = el('div', { class: 'ledger' }, sessions.map(session => {
     const when = new Date(session.iso);
-    return el('article', { class: 'entry' },
+    return el('article', { class: 'entry', tabindex: '-1', dataset: { day: dateKey(when) } },
       el('div', { class: 'entry__head' },
         el('span', { class: 'entry__code', text: session.code, 'aria-hidden': 'true' }),
         el('h3', { class: 'entry__name' },

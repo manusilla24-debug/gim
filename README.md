@@ -47,6 +47,9 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   hombro y abdomen verde mientras se registra cada entrenamiento.
 - **Calendario**: muestra los días entrenados con un círculo del color del bloque
   realizado; permite consultar también meses anteriores.
+  Tocar un día entrenado abre sus sesiones en el historial, restablece el orden
+  por fecha y las enmarca durante cinco segundos con el color actual de la
+  interfaz. Si hay varias sesiones ese día, se resaltan todas.
 - **Historial** completo con el tonelaje (carga × series × repeticiones) de cada
   sesión. Las sesiones cerradas se pueden corregir desde el botón del lápiz;
   los abdominales se anotan con series y notas, sin campos de carga ni
