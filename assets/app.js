@@ -73,7 +73,7 @@ function emptyLog() {
 }
 
 function emptyStore() {
-  return { version: 3, users: [], lastUserId: '', logs: {} };
+  return { version: 4, users: [], lastUserId: '', logs: {} };
 }
 
 let store = emptyStore();
@@ -153,7 +153,7 @@ const $ = id => document.getElementById(id);
 
 /* --- Persistencia ------------------------------------------------------- */
 
-const STORE_KEY = 'gim.v3';
+const STORE_KEY = 'gim.v3'; // se conserva la clave; version: 4 añade sensaciones por sesión
 const LEGACY_V2 = 'gim.v2';
 const LEGACY_KEY = 'gymData';
 const SESSION_KEY = 'gim.session';
@@ -190,6 +190,9 @@ function normaliseLog(log) {
   if (!isDataObject(clean.draft)) clean.draft = {};
   if (!isDataObject(clean.extra)) clean.extra = {};
   if (!Array.isArray(clean.sessions)) clean.sessions = [];
+  clean.sessions.forEach(session => {
+    session.note = typeof session.note === 'string' ? session.note.trim().slice(0, 2000) : '';
+  });
   normaliseExerciseVariants(clean.sessions);
   clean.sessions.sort((a, b) => new Date(b.iso) - new Date(a.iso));
   return clean;
@@ -217,7 +220,7 @@ function validLogCopy(log) {
   if (!isDataObject(log)) return false;
   if (log.sessions !== undefined && (!Array.isArray(log.sessions) || !log.sessions.every(session =>
     isDataObject(session) && typeof session.iso === 'string' && Number.isFinite(Date.parse(session.iso))
-    && ['id', 'routineId', 'code', 'name'].every(key => session[key] === undefined || typeof session[key] === 'string')
+    && ['id', 'routineId', 'code', 'name', 'note'].every(key => session[key] === undefined || typeof session[key] === 'string')
     && (session.volume === undefined || (typeof session.volume === 'number' && Number.isFinite(session.volume)))
     && Array.isArray(session.entries) && session.entries.every(entry => validRecordFields(entry) && typeof entry.name === 'string')
   ))) return false;
@@ -235,7 +238,7 @@ function validLogCopy(log) {
 
 function validStoreCopy(value) {
   if (!isDataObject(value) || !Array.isArray(value.users) || !isDataObject(value.logs)) return false;
-  if (value.version !== undefined && value.version !== 3) return false;
+  if (value.version !== undefined && ![3, 4].includes(value.version)) return false;
   const ids = new Set();
   return value.users.every(user => {
     if (!isDataObject(user) || !safeDataId(user.id) || typeof user.name !== 'string' || ids.has(user.id)) return false;
@@ -293,6 +296,7 @@ function load() {
     try {
       const parsed = JSON.parse(raw);
       store = Object.assign(emptyStore(), parsed);
+      store.version = 4;
       if (!Array.isArray(store.users)) store.users = [];
       store.users.forEach(user => { store.logs[user.id] = normaliseLog(store.logs[user.id]); });
       return;
@@ -1684,6 +1688,10 @@ function renderHistory() {
           )
         )
       ),
+      session.note ? el('div', { class: 'entry__session-note' },
+        el('p', { class: 'field__label', text: 'Sensaciones del entrenamiento' }),
+        el('p', { class: 'entry__session-text', text: session.note })
+      ) : null,
       session.entries.length
         ? el('div', { class: 'entry__body' },
             el('div', { class: 'entry__list' }, session.entries.map(entry => el('div', { class: 'entry__item' },
@@ -2278,14 +2286,19 @@ function toast(message, highlight) {
   toastTimer = setTimeout(() => { node.hidden = true; }, 2600);
 }
 
-function confirmAction(title, text, confirmLabel) {
+function confirmAction(title, text, confirmLabel, withSessionNote = false) {
   const dialog = $('confirmDialog');
   $('dialogField').hidden = true;
+  $('dialogSessionNoteField').hidden = !withSessionNote;
+  $('dialogSessionNote').value = '';
   $('dialogTitle').textContent = title;
   $('dialogText').textContent = text;
   $('dialogConfirm').textContent = confirmLabel;
   return new Promise(resolve => {
-    dialog.addEventListener('close', () => resolve(dialog.returnValue === 'ok'), { once: true });
+    dialog.addEventListener('close', () => {
+      $('dialogSessionNoteField').hidden = true;
+      resolve(dialog.returnValue === 'ok');
+    }, { once: true });
     dialog.returnValue = 'cancel';
     openModal(dialog);
     $('dialogConfirm').focus();
@@ -2295,6 +2308,7 @@ function confirmAction(title, text, confirmLabel) {
 /* Igual que confirmAction, pero con un campo de texto. Devuelve null si se cancela. */
 function promptAction(title, text, confirmLabel, value) {
   const dialog = $('confirmDialog');
+  $('dialogSessionNoteField').hidden = true;
   const input = $('dialogInput');
   $('dialogTitle').textContent = title;
   $('dialogText').textContent = text;
@@ -2396,7 +2410,7 @@ async function completeSession() {
   const ok = await confirmAction('Terminar entrenamiento',
     'Se guardan ' + entries.length + (entries.length === 1 ? ' ejercicio' : ' ejercicios')
     + ' en el historial y el registro pasa al bloque siguiente.',
-    'Terminar entrenamiento');
+    'Terminar entrenamiento', true);
   if (!ok) return;
 
   const records = entries.filter(entry => {
@@ -2413,6 +2427,7 @@ async function completeSession() {
     routineId: routine.id,
     code: routine.code,
     name: routine.name,
+    note: $('dialogSessionNote').value.trim().slice(0, 2000),
     entries,
     volume: volumeOf(entries)
   });
@@ -2517,6 +2532,7 @@ function editSession(id) {
   const dialog = $('editSessionDialog');
   dialog.dataset.sessionId = id;
   $('editSessionText').textContent = session.name + ' · ' + dateShort.format(new Date(session.iso));
+  $('editSessionNote').value = session.note || '';
   $('editSessionEntries').replaceChildren(...session.entries.map((entry, index) => {
     const setsOnly = isAbdominalEntry(session, entry);
     return el('fieldset', { class: 'edit-session__entry', dataset: { editEntry: String(index) } },
@@ -2542,6 +2558,7 @@ function saveEditedSession(event) {
   const dialog = $('editSessionDialog');
   const session = state.sessions.find(item => item.id === dialog.dataset.sessionId);
   if (!session) { dialog.close(); return; }
+  session.note = $('editSessionNote').value.trim().slice(0, 2000);
   dialog.querySelectorAll('[data-edit-entry]').forEach(row => {
     const entry = session.entries[Number(row.dataset.editEntry)];
     if (!entry) return;
@@ -2598,7 +2615,7 @@ async function importData(file) {
   // Copia completa (todos los atletas)
   if (Array.isArray(incoming.users)) {
     if (!validStoreCopy(incoming)) { toast('El archivo no es una copia válida'); return; }
-    const restored = Object.assign(emptyStore(), incoming, { logs: {} });
+    const restored = Object.assign(emptyStore(), incoming, { version: 4, logs: {} });
     restored.users.forEach(user => { restored.logs[user.id] = normaliseLog(incoming.logs[user.id]); });
     const ok = await confirmAction('Restaurar copia',
       'La copia trae ' + incoming.users.length + (incoming.users.length === 1 ? ' atleta' : ' atletas')

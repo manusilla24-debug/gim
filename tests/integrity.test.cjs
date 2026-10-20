@@ -44,6 +44,7 @@ vm.runInContext(read('assets/app.js').replace(/boot\(\);\s*$/, ''), context);
       { sessions: [null] },
       { sessions: [{ iso: 'fecha inválida', entries: [] }] },
       { sessions: [{ iso: old.iso, entries: [null] }] },
+      { sessions: [{ ...old, note: { text: 'No es texto' } }] },
       { ...payload, logs: { test: { extra: { a: {} } } } },
       { ...payload, logs: { test: { extra: { a: [{ id: 'x1', name: 'Extra', variants: {} }] } } } },
       { ...payload, users: [payload.users[0], payload.users[0]] },
@@ -93,6 +94,29 @@ vm.runInContext(read('assets/app.js').replace(/boot\(\);\s*$/, ''), context);
     localStorage.setItem(LEGACY_KEY, JSON.stringify({ allHistory: [], workoutData: {}, currentRoutineIndex: 1 }));
     assert.equal(importLegacy().activeId, 'b');
     assert.ok(localStorage.getItem(LEGACY_KEY));
+
+    // Sesiones anteriores sin sensaciones y copias nuevas con texto multilínea.
+    const withoutNote = { ...old }; delete withoutNote.note;
+    assert.equal(normaliseLog({ sessions: [withoutNote] }).sessions[0].note, '');
+    assert.equal(emptyStore().version, 4);
+    const withNote = { ...payload, version: 4, logs: { test: { ...emptyLog(), sessions: [{ ...old, note: '  Buena energía.\\nÚltima serie difícil.  ' }] } } };
+    await importData(file(withNote));
+    state = store.logs.test;
+    assert.equal(state.sessions[0].note, 'Buena energía.\\nÚltima serie difícil.');
+    assert.equal(store.version, 4);
+    const savedNote = JSON.parse(localStorage.getItem(STORE_KEY));
+    assert.equal(savedNote.logs.test.sessions[0].note, state.sessions[0].note);
+    await importData(file(savedNote));
+    assert.equal(store.logs.test.sessions[0].note, state.sessions[0].note);
+    assert.equal(normaliseLog({ sessions: [{ ...old, note: 'x'.repeat(2500) }] }).sessions[0].note.length, 2000);
+    await importData(file(payload));
+    assert.equal(store.version, 4);
+    assert.equal(store.logs.test.sessions[0].note, '');
+    localStorage.setItem(STORE_KEY, JSON.stringify(payload));
+    load();
+    assert.equal(store.version, 4);
+    assert.equal(store.logs.test.sessions[0].note, '');
+    assert.equal(normaliseLog({ sessions: [] }).sessions.length, 0);
     globalThis.importFileForFailure = file(payload);
   })()`, context);
 

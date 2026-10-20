@@ -413,6 +413,10 @@
   <div class="dialog__body">
     <h2 class="dialog__title" id="dialogTitle">Confirmar</h2>
     <p class="dialog__text" id="dialogText"></p>
+    <p class="field session-note-field" id="dialogSessionNoteField" hidden>
+      <label class="field__label" for="dialogSessionNote">Sensaciones del entrenamiento (opcional)</label>
+      <textarea id="dialogSessionNote" rows="4" maxlength="2000" placeholder="Cómo te has encontrado, energía, sensaciones…"></textarea>
+    </p>
     <p class="field" id="dialogField" hidden>
       <label class="field__label" for="dialogInput">Nombre</label>
       <input type="text" id="dialogInput" maxlength="24" autocomplete="off">
@@ -429,6 +433,10 @@
     <div class="dialog__body">
       <h2 class="dialog__title" id="editSessionTitle">Editar sesión</h2>
       <p class="dialog__text" id="editSessionText"></p>
+      <p class="field session-note-field">
+        <label class="field__label" for="editSessionNote">Sensaciones del entrenamiento (opcional)</label>
+        <textarea id="editSessionNote" rows="4" maxlength="2000" placeholder="Cómo te has encontrado, energía, sensaciones…"></textarea>
+      </p>
       <div class="edit-session" id="editSessionEntries"></div>
     </div>
     <div class="dialog__actions">

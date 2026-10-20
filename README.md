@@ -54,6 +54,10 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   sesión. Las sesiones cerradas se pueden corregir desde el botón del lápiz;
   los abdominales se anotan con series y notas, sin campos de carga ni
   repeticiones. Los registros antiguos conservan sus repeticiones originales.
+- **Sensaciones del entrenamiento**: al terminar se puede escribir una nota
+  opcional de hasta 2000 caracteres. Aparece debajo de la cabecera de la sesión
+  y antes de los ejercicios en el historial. Se puede corregir con el lápiz y se
+  incluye en las copias JSON; dejarla vacía no muestra un apartado adicional.
 - **Orden del historial**: el botón cuadrado de flechas junto al título permite
   ver todas las sesiones de la más reciente a la más antigua o al revés. Las
   opciones de bloque A, B y C muestran solo ese bloque, con sus sesiones más
@@ -219,6 +223,11 @@ offline. Si la aplicación ya estaba abierta, recarga tras el aviso de nueva
 versión; el borrador se guarda antes de salir.
 
 ## Datos anteriores
+
+El contenido del almacén pasa a la versión 4 para añadir `note` a cada sesión.
+Se conserva la clave `gim.v3` del navegador. Los datos y copias de versión 3 se
+leen con sensaciones vacías cuando no existen; las nuevas copias indican versión
+4. Las sensaciones se validan como texto y se limitan a 2000 caracteres.
 
 La primera versión guardaba en la clave `gymData` de `localStorage`, y la
 siguiente en `gim.v2`. Al abrir el sitio, lo que haya se convierte al formato
