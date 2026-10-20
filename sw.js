@@ -1,7 +1,7 @@
 /* Service worker: deja la aplicación utilizable sin conexión.
    Al cambiar archivos, sube VERSION para que se renueve la caché. */
 
-const VERSION = 'gim-2026-10-19-entrenador-conversacional';
+const VERSION = 'gim-2026-10-20-integridad-y-offline';
 const FONTS = 'gim-fuentes-1';
 
 const SHELL = [
@@ -14,6 +14,7 @@ const SHELL = [
   '/assets/icon.svg',
   '/assets/icon-192.png',
   '/assets/icon-512.png',
+  '/assets/icon-maskable-512.png',
   '/assets/apple-touch-icon.png',
   '/assets/manifest.webmanifest'
 ];
@@ -63,17 +64,36 @@ self.addEventListener('fetch', event => {
   // Todo lo propio va primero a la red y cae en la caché si no hay conexión.
   // Evita reutilizar respuestas de la caché HTTP al renovar el shell.
   // La caché propia mantiene el funcionamiento cuando falla la conexión.
-  const fallback = request.mode === 'navigate' ? '/index.html' : request;
-
-  event.respondWith(
-    fetch(request, { cache: 'no-store' })
-      .then(response => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(VERSION).then(cache => cache.put(fallback, copy));
-        }
-        return response;
-      })
-      .catch(() => caches.match(fallback).then(hit => hit || caches.match('/')))
-  );
+  const navigation = request.mode === 'navigate';
+  const fallback = navigation ? '/index.html' : request;
+  const appDocument = navigation && (url.pathname === '/' || url.pathname === '/index.html');
+  const network = fetch(request, { cache: 'no-store' }).then(async response => {
+    // Una visita a otro documento o icono no puede sustituir la app offline.
+    if (response.ok && (!navigation || (appDocument && (response.headers.get('content-type') || '').includes('text/html')))) {
+      const copy = response.clone();
+      try { await (await caches.open(VERSION)).put(fallback, copy); }
+      catch (e) { /* la respuesta de red sigue siendo utilizable */ }
+    }
+    return response;
+  });
+  // La petición puede actualizar la caché aunque ya se haya servido el respaldo.
+  event.waitUntil(network.catch(() => {}));
+  event.respondWith((async () => {
+    let hit = null;
+    try {
+      const cache = await caches.open(VERSION);
+      hit = await cache.match(fallback) || (navigation ? await cache.match('/') : null);
+    } catch (e) { /* sin caché disponible, se utiliza la red */ }
+    let timer;
+    try {
+      const response = hit
+        ? await Promise.race([network, new Promise(resolve => { timer = setTimeout(() => resolve(hit), 3500); })])
+        : await network;
+      return !response.ok && hit ? hit : response;
+    } catch (e) {
+      return hit || Response.error();
+    } finally {
+      clearTimeout(timer);
+    }
+  })());
 });

@@ -103,6 +103,10 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   pantalla de inicio* (Safari no ofrece el botón a la página).
 - **Datos locales**: todo se guarda en `localStorage`, sin servidor ni cuentas.
   Hay descarga y restauración de copias en JSON.
+  La restauración comprueba la estructura antes de sustituir datos y conserva
+  el registro anterior si el navegador no permite guardar. Las sesiones
+  importadas se ordenan por fecha; al compararlas, los ejercicios omitidos no
+  desplazan las cargas de los demás y las variantes se mantienen separadas.
 
 ## Acceso
 
@@ -160,11 +164,16 @@ Y abrir <http://localhost:8000>. `localhost` cuenta como contexto seguro, así
 que la PWA se puede probar entera.
 
 Al cambiar archivos, sube `VERSION` en `sw.js` para renovar la caché.
+El respaldo offline se usa también ante errores HTTP y, cuando ya hay una
+copia en caché, tras 3,5 segundos de espera de la red. Visitar otro documento
+del sitio no reemplaza la página de la aplicación guardada sin conexión.
 
 Las comprobaciones del entrenador se ejecutan con Node, sin instalar paquetes:
 
 ```bash
 node tests/coach.test.cjs
+node tests/integrity.test.cjs
+node tests/offline.test.cjs
 node --check assets/app.js
 node --check assets/coach-knowledge.js
 node --check assets/boot.js
@@ -176,6 +185,9 @@ conservación de notas, propuestas desactualizadas y deshacer sin pisar edicione
 También comprueban intención, contexto, preguntas múltiples, cálculos, negaciones
 y consultas a ejercicios de otros bloques sin cambiar el registro.
 El DOM mínimo de la prueba no sustituye la revisión del chat en el navegador.
+Las pruebas de integridad usan datos ficticios para comprobar importaciones,
+fallos de escritura, migraciones, orden y comparación. Las de offline simulan
+el service worker; no sustituyen una prueba de instalación en Safari/iOS.
 
 ## Desplegar en Vercel
 

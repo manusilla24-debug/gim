@@ -102,7 +102,8 @@ Arranca un servidor local desde la raíz:
 python3 -m http.server 4173
 ```
 
-No existe actualmente una suite automatizada. Antes de dar un cambio por bueno,
+Hay pruebas sin dependencias en `tests/` (entrenador, integridad y offline),
+documentadas en README.md. Antes de dar un cambio por bueno,
 haz las comprobaciones proporcionales al área modificada:
 
 1. Abre `http://localhost:4173` y revisa la consola del navegador.

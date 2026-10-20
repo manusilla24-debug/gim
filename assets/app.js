@@ -187,9 +187,61 @@ function normaliseLog(log) {
   const clean = Object.assign(emptyLog(), log || {});
   if (!ROUTINE_BY_ID.has(clean.activeId)) clean.activeId = SPLIT[0].id;
   if (!ROUTINE_BY_ID.has(clean.nextId)) clean.nextId = clean.activeId;
+  if (!isDataObject(clean.draft)) clean.draft = {};
+  if (!isDataObject(clean.extra)) clean.extra = {};
   if (!Array.isArray(clean.sessions)) clean.sessions = [];
   normaliseExerciseVariants(clean.sessions);
+  clean.sessions.sort((a, b) => new Date(b.iso) - new Date(a.iso));
   return clean;
+}
+
+/* Las copias se comprueban completas antes de tocar el registro actual.
+   Los campos opcionales de versiones anteriores conservan sus valores por defecto. */
+function isDataObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function safeDataId(value) {
+  return typeof value === 'string' && value.length > 0
+    && !['__proto__', 'prototype', 'constructor'].includes(value);
+}
+
+function validRecordFields(row) {
+  return isDataObject(row)
+    && ['load', 'sets', 'reps'].every(key => row[key] === undefined
+      || typeof row[key] === 'string' || (typeof row[key] === 'number' && Number.isFinite(row[key])))
+    && ['note', 'variant', 'equip', 'exerciseId'].every(key => row[key] === undefined || typeof row[key] === 'string');
+}
+
+function validLogCopy(log) {
+  if (!isDataObject(log)) return false;
+  if (log.sessions !== undefined && (!Array.isArray(log.sessions) || !log.sessions.every(session =>
+    isDataObject(session) && typeof session.iso === 'string' && Number.isFinite(Date.parse(session.iso))
+    && ['id', 'routineId', 'code', 'name'].every(key => session[key] === undefined || typeof session[key] === 'string')
+    && (session.volume === undefined || (typeof session.volume === 'number' && Number.isFinite(session.volume)))
+    && Array.isArray(session.entries) && session.entries.every(entry => validRecordFields(entry) && typeof entry.name === 'string')
+  ))) return false;
+  if (log.draft !== undefined && (!isDataObject(log.draft) || !Object.entries(log.draft).every(([id, rows]) =>
+    safeDataId(id) && isDataObject(rows) && Object.entries(rows).every(([key, row]) => safeDataId(key) && validRecordFields(row))
+  ))) return false;
+  if (log.extra !== undefined && (!isDataObject(log.extra) || !Object.entries(log.extra).every(([id, rows]) =>
+    safeDataId(id) && Array.isArray(rows) && rows.every(row => isDataObject(row) && safeDataId(row.id) && typeof row.name === 'string'
+      && ['equip', 'legacyName', 'variantLabel', 'defaultVariant'].every(key => row[key] === undefined || typeof row[key] === 'string')
+      && ['tracksLoad', 'tracksSetsOnly', 'custom'].every(key => row[key] === undefined || typeof row[key] === 'boolean')
+      && (row.variants === undefined || (Array.isArray(row.variants) && row.variants.every(name => typeof name === 'string'))))
+  ))) return false;
+  return true;
+}
+
+function validStoreCopy(value) {
+  if (!isDataObject(value) || !Array.isArray(value.users) || !isDataObject(value.logs)) return false;
+  if (value.version !== undefined && value.version !== 3) return false;
+  const ids = new Set();
+  return value.users.every(user => {
+    if (!isDataObject(user) || !safeDataId(user.id) || typeof user.name !== 'string' || ids.has(user.id)) return false;
+    ids.add(user.id);
+    return validLogCopy(value.logs[user.id]);
+  });
 }
 
 /* Reclasifica el historial personal anterior a los selectores de variantes.
@@ -2011,13 +2063,37 @@ function syncComparisonFilters() {
 }
 
 function comparisonData(sessions) {
-  const length = Math.max(0, ...sessions.map(session => session.entries.length));
-  return Array.from({ length }, (_, index) => {
-    const reference = sessions.map(session => session.entries[index]).find(Boolean);
+  // Un ejercicio omitido no desplaza las cargas de los demás. Las variantes
+  // y los dos huecos de remo conservan referencias independientes.
+  const idsByName = new Map();
+  sessions.forEach(session => session.entries.forEach(entry => {
+    if (!entry.exerciseId) return;
+    if (!idsByName.has(entry.name)) idsByName.set(entry.name, new Set());
+    idsByName.get(entry.name).add(entry.exerciseId);
+  }));
+  const keyOf = (entry, session) => {
+    const routine = ROUTINE_BY_ID.get(session.routineId);
+    const exercise = routine && routine.exercises.find(item => item.name === entry.name
+      || item.legacyName === entry.name || (item.variants || []).includes(entry.name));
+    const ids = idsByName.get(entry.name);
+    const id = entry.exerciseId || (exercise && exercise.id) || (ids && ids.size === 1 ? [...ids][0] : '');
+    return JSON.stringify([id, entry.name]);
+  };
+  const references = new Map();
+  const entriesBySession = sessions.map(session => {
+    const entries = new Map();
+    session.entries.forEach(entry => {
+      const key = keyOf(entry, session);
+      if (!references.has(key)) references.set(key, entry);
+      entries.set(key, entry);
+    });
+    return entries;
+  });
+  return [...references].map(([key, reference]) => {
     return {
-      name: reference ? reference.name : 'Ejercicio ' + (index + 1),
-      values: sessions.map(session => {
-        const entry = session.entries[index];
+      name: reference.name,
+      values: sessions.map((session, index) => {
+        const entry = entriesBySession[index].get(key);
         if (!entry) return null;
         const load = num(entry.load);
         const reps = num(entry.reps);
@@ -2046,7 +2122,7 @@ function renderComparison() {
 
   $('comparisonChartTitle').textContent = 'Comparación del bloque ' + routine.code;
   $('comparisonChartSub').textContent = comparisonSessions.length
-    ? comparisonSessions.length + (comparisonSessions.length === 1 ? ' sesión elegida' : ' sesiones elegidas') + ' · peso por posición de ejercicio'
+    ? comparisonSessions.length + (comparisonSessions.length === 1 ? ' sesión elegida' : ' sesiones elegidas') + ' · peso por ejercicio'
     : 'Elige al menos una sesión para empezar a comparar.';
 
   renderComparisonLegend();
@@ -2497,14 +2573,20 @@ async function importData(file) {
 
   // Copia completa (todos los atletas)
   if (Array.isArray(incoming.users)) {
+    if (!validStoreCopy(incoming)) { toast('El archivo no es una copia válida'); return; }
+    const restored = Object.assign(emptyStore(), incoming, { logs: {} });
+    restored.users.forEach(user => { restored.logs[user.id] = normaliseLog(incoming.logs[user.id]); });
     const ok = await confirmAction('Restaurar copia',
       'La copia trae ' + incoming.users.length + (incoming.users.length === 1 ? ' atleta' : ' atletas')
       + ' y sustituye todo lo guardado en este dispositivo.',
       'Restaurar');
     if (!ok) return;
-    store = Object.assign(emptyStore(), incoming);
-    store.users.forEach(user => { store.logs[user.id] = normaliseLog(store.logs[user.id]); });
-    saveNow();
+    // Si Safari no permite escribir, el registro anterior sigue intacto.
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(restored)); }
+    catch (e) { toast('No se pudo restaurar: almacenamiento no disponible'); return; }
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    store = restored;
     leaveUser();
     toast('Copia restaurada');
     return;
@@ -2512,18 +2594,24 @@ async function importData(file) {
 
   // Copia antigua: un único registro, que entra en el atleta abierto
   if (Array.isArray(incoming.sessions)) {
+    if (!validLogCopy(incoming)) { toast('El archivo no es una copia válida'); return; }
     if (!currentUser) { toast('Abre un atleta antes de restaurar'); return; }
     const ok = await confirmAction('Restaurar copia',
       'La copia trae ' + incoming.sessions.length + (incoming.sessions.length === 1 ? ' sesión' : ' sesiones')
       + ' y sustituye el registro de ' + currentUser.name + '.',
       'Restaurar');
     if (!ok) return;
-    state = normaliseLog(incoming);
-    store.logs[currentUser.id] = state;
+    const restored = normaliseLog(incoming);
+    const restoredStore = Object.assign({}, store, { logs: Object.assign({}, store.logs, { [currentUser.id]: restored }) });
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(restoredStore)); }
+    catch (e) { toast('No se pudo restaurar: almacenamiento no disponible'); return; }
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    state = restored;
+    store = restoredStore;
     chartExercise = null;
     comparisonSessionIds = ['', '', ''];
     comparisonNeedsDefaults = true;
-    saveNow();
     renderAll();
     toast('Copia restaurada');
     return;
