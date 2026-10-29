@@ -1432,9 +1432,14 @@ function renderWeek() {
       'aria-label': dateLong.format(day) + (records.length ? ' · ' + records.length + ' sesiones completadas' : ' · Sin sesiones registradas'),
       onclick: () => { weekSelectedDay = day; renderWeek(); $('weekDays').children[index].focus({ preventScroll: true }); }
     }, el('span', { class: 'week__weekday', text: label, 'aria-hidden': 'true' }),
-    el('span', { class: 'week__number', text: String(day.getDate()), 'aria-hidden': 'true' }),
-    el('span', { class: 'week__markers', 'aria-hidden': 'true' },
-      routines.map(id => el('span', { class: 'week__dot week__dot--' + id }))));
+    el('span', { class: 'week__number', 'aria-hidden': 'true' }, String(day.getDate()),
+      routines.length ? svg('svg', { class: 'week__ring', viewBox: '0 0 40 40', 'aria-hidden': 'true' },
+        routines.map((id, ringIndex) => svg('circle', {
+          class: 'week__ring--' + id, cx: 20, cy: 20, r: 18, pathLength: 100,
+          'stroke-dasharray': (100 / routines.length) + ' ' + (100 - 100 / routines.length),
+          'stroke-dashoffset': -ringIndex * 100 / routines.length,
+          transform: 'rotate(-90 20 20)'
+        }))) : null));
   }));
   const records = byDay.get(selected) || [];
   const label = selected === today ? 'Hoy' : dayLong.format(weekSelectedDay);
