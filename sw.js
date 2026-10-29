@@ -1,7 +1,7 @@
 /* Service worker: deja la aplicación utilizable sin conexión.
    Al cambiar archivos, sube VERSION para que se renueve la caché. */
 
-const VERSION = 'gim-2026-10-20-sensaciones-entrenamiento';
+const VERSION = 'gim-2026-10-29-calendario-semanal-inicio';
 const FONTS = 'gim-fuentes-1';
 
 const SHELL = [

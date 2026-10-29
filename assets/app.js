@@ -87,6 +87,7 @@ let comparisonSessionIds = ['', '', ''];
 let comparisonNeedsDefaults = true;
 let managing = false;       // el selector, en modo gestión
 let calendarMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let weekSelectedDay = new Date();
 let coachPlan = null;       // propuesta efímera; el historial sigue siendo la fuente
 let coachUserId = null;
 let coachRoutineId = null;
@@ -421,6 +422,7 @@ function openUser(id) {
   store.lastUserId = id;
   chartExercise = null;
   historyOrder = 'newest';
+  weekSelectedDay = new Date();
   comparisonSessionIds = ['', '', ''];
   comparisonNeedsDefaults = true;
   try { sessionStorage.setItem(SESSION_KEY, id); } catch (e) { /* sin persistencia */ }
@@ -1291,6 +1293,7 @@ function currentStreak() {
 }
 
 function renderHome() {
+  renderWeek();
   const routine = ROUTINE_BY_ID.get(state.nextId) || ROUTINE_BY_ID.get(state.activeId);
   const last = state.sessions[0];
   const recent = state.sessions.slice(0, 4);
@@ -1387,10 +1390,62 @@ function renderActivity() {
   const midnight = new Date(end);
   midnight.setHours(24, 0, 0, 0);
   clearTimeout(activityTimer);
-  activityTimer = setTimeout(() => { if (currentUser) renderActivity(); }, midnight.getTime() - Date.now());
+  activityTimer = setTimeout(() => {
+    if (currentUser) { renderActivity(); renderWeek(); }
+  }, midnight.getTime() - Date.now());
 }
 
 /* --- Calendario -------------------------------------------------------- */
+
+function weekStart(date) {
+  const start = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);
+  start.setDate(start.getDate() - (start.getDay() + 6) % 7);
+  return start;
+}
+
+function moveWeek(direction) {
+  weekSelectedDay.setDate(weekSelectedDay.getDate() + direction * 7);
+  renderWeek();
+}
+
+function renderWeek() {
+  const start = weekStart(weekSelectedDay);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const today = dateKey(new Date());
+  const selected = dateKey(weekSelectedDay);
+  const byDay = sessionsByDay();
+  const currentWeek = dateKey(start) === dateKey(weekStart(new Date()));
+  $('weekTitle').textContent = currentWeek ? 'Esta semana' : 'Tu semana';
+  $('weekRange').textContent = dateShort.format(start) + ' – ' + dateShort.format(end);
+  $('weekToday').hidden = selected === today;
+  const weekdays = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  $('weekDays').replaceChildren(...weekdays.map((label, index) => {
+    const day = new Date(start);
+    day.setDate(day.getDate() + index);
+    const key = dateKey(day);
+    const records = byDay.get(key) || [];
+    const routines = [...new Set(records.map(record => record.routine.id))];
+    return el('button', {
+      class: 'week__day', type: 'button', 'aria-pressed': String(key === selected),
+      'aria-current': key === today ? 'date' : null,
+      'aria-label': dateLong.format(day) + (records.length ? ' · ' + records.length + ' sesiones completadas' : ' · Sin sesiones registradas'),
+      onclick: () => { weekSelectedDay = day; renderWeek(); $('weekDays').children[index].focus({ preventScroll: true }); }
+    }, el('span', { class: 'week__weekday', text: label, 'aria-hidden': 'true' }),
+    el('span', { class: 'week__number', text: String(day.getDate()), 'aria-hidden': 'true' }),
+    el('span', { class: 'week__markers', 'aria-hidden': 'true' },
+      routines.map(id => el('span', { class: 'week__dot week__dot--' + id }))));
+  }));
+  const records = byDay.get(selected) || [];
+  const label = selected === today ? 'Hoy' : dayLong.format(weekSelectedDay);
+  $('weekSessions').replaceChildren(records.length
+    ? el('ul', { class: 'week__list' }, records.map(({ routine }) => el('li', {},
+        el('button', { class: 'week__session', type: 'button', onclick: () => openHistoryDay(selected) },
+          el('span', { class: 'week__check', text: '✓', 'aria-hidden': 'true' }),
+          el('span', { class: 'home-list__main' }, el('small', { text: label }), 'Bloque ' + routine.code + ' · ' + routine.name),
+          el('span', { class: 'week__badge', text: 'Completada' })))))
+    : el('p', { class: 'week__empty', text: label + ' · Sin sesiones registradas' }));
+}
 
 const monthLong = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' });
 const dayLong = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -3074,6 +3129,27 @@ function bindEvents() {
   $('calendarToggle').addEventListener('click', () => {
     selectTab($('calendario').hidden ? 'calendario' : 'registro', true);
   });
+  $('weekPrevious').addEventListener('click', () => moveWeek(-1));
+  $('weekNext').addEventListener('click', () => moveWeek(1));
+  $('weekToday').addEventListener('click', () => {
+    weekSelectedDay = new Date();
+    renderWeek();
+    $('weekDays').querySelector('[aria-pressed="true"]').focus();
+  });
+  let weekTouch = null;
+  $('weekDays').addEventListener('touchstart', event => {
+    const touch = event.touches[0];
+    weekTouch = event.touches.length === 1 ? { x: touch.clientX, y: touch.clientY } : null;
+  }, { passive: true });
+  $('weekDays').addEventListener('touchend', event => {
+    if (!weekTouch) return;
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - weekTouch.x;
+    const dy = touch.clientY - weekTouch.y;
+    weekTouch = null;
+    if (Math.abs(dx) >= 50 && Math.abs(dx) > Math.abs(dy) * 1.5) moveWeek(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  $('weekDays').addEventListener('touchcancel', () => { weekTouch = null; });
   $('calendarPrevious').addEventListener('click', () => {
     calendarMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1);
     renderCalendar();

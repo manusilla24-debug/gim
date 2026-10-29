@@ -26,6 +26,11 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
 - **Inicio personal**: próximo bloque, actividad reciente, mejores
   cargas y un mapa de constancia de las últimas 16 semanas. Las letras de los
   días acompañan a cada fila y rotan para que hoy siempre quede abajo.
+  Encima de «Tu referencia» hay un calendario semanal de lunes a domingo:
+  permite avanzar o retroceder con flechas o deslizando sobre los días, seleccionar
+  una fecha y consultar sus sesiones completadas en el historial. Los puntos usan
+  el color de cada bloque y «Volver a hoy» recupera la fecha actual. Solo muestra
+  sesiones guardadas del atleta activo; no genera entrenamientos previstos.
 - **Ayuda durante la sesión**: cada ejercicio muestra la última referencia y
   un objetivo conservador; una nueva mejor carga recibe un aviso especial.
 - **Cargas decimales**: los campos aceptan tanto coma como punto en móvil

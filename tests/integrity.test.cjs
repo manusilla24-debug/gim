@@ -22,6 +22,20 @@ vm.runInContext(read('assets/app.js').replace(/boot\(\);\s*$/, ''), context);
 (async () => {
   await vm.runInContext(`(async () => {
     const notices = [];
+    // Semanas locales: lunes, cambio de año y horario de verano.
+    assert.equal(dateKey(weekStart(new Date(2027, 0, 3))), '2026-12-28');
+    assert.equal(dateKey(weekStart(new Date(2026, 9, 26))), '2026-10-26');
+    assert.equal(dateKey(weekStart(new Date(2026, 9, 25))), '2026-10-19');
+    const originalRenderWeek = renderWeek;
+    let weekRenders = 0;
+    renderWeek = () => { weekRenders++; };
+    weekSelectedDay = new Date(2026, 9, 22, 12);
+    moveWeek(1);
+    assert.equal(dateKey(weekSelectedDay), '2026-10-29');
+    moveWeek(-1);
+    assert.equal(dateKey(weekSelectedDay), '2026-10-22');
+    assert.equal(weekRenders, 2);
+    renderWeek = originalRenderWeek;
     toast = message => notices.push(message);
     let confirmations = 0;
     let approve = true;

@@ -160,6 +160,20 @@
 
         <dl class="home-stats" id="homeStats"></dl>
 
+        <section class="card home-card week" id="homeWeek" aria-labelledby="weekTitle">
+          <div class="week__head">
+            <button class="iconbtn" type="button" id="weekPrevious" aria-label="Semana anterior">‹</button>
+            <div class="week__heading" aria-live="polite" aria-atomic="true">
+              <h3 class="card__title" id="weekTitle">Esta semana</h3>
+              <p class="card__sub" id="weekRange"></p>
+            </div>
+            <button class="iconbtn" type="button" id="weekNext" aria-label="Semana siguiente">›</button>
+          </div>
+          <div class="week__days" id="weekDays" role="group" aria-label="Días de la semana"></div>
+          <div class="week__sessions" id="weekSessions" aria-live="polite" aria-atomic="true"></div>
+          <button class="btn btn--quiet week__today" type="button" id="weekToday" hidden>Volver a hoy</button>
+        </section>
+
         <div class="home-grid">
           <section class="card home-card" aria-labelledby="homeRecentTitle">
             <div class="card__head">
