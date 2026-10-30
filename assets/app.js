@@ -68,12 +68,13 @@ function emptyLog() {
     nextId: SPLIT[0].id,
     draft: {},      // draft[rutina][ejercicio] = { load, sets, reps, note }
     extra: {},      // extra[rutina] = [{ id, name }]
-    sessions: []    // más reciente primero
+    sessions: [],   // más reciente primero
+    otherDays: []   // fechas locales marcadas como Otros, sin sesiones ni detalles
   };
 }
 
 function emptyStore() {
-  return { version: 4, users: [], lastUserId: '', logs: {} };
+  return { version: 5, users: [], lastUserId: '', logs: {} };
 }
 
 let store = emptyStore();
@@ -154,7 +155,7 @@ const $ = id => document.getElementById(id);
 
 /* --- Persistencia ------------------------------------------------------- */
 
-const STORE_KEY = 'gim.v3'; // se conserva la clave; version: 4 añade sensaciones por sesión
+const STORE_KEY = 'gim.v3'; // se conserva la clave; version: 5 añade fechas de Otros
 const LEGACY_V2 = 'gim.v2';
 const LEGACY_KEY = 'gymData';
 const SESSION_KEY = 'gim.session';
@@ -191,6 +192,7 @@ function normaliseLog(log) {
   if (!isDataObject(clean.draft)) clean.draft = {};
   if (!isDataObject(clean.extra)) clean.extra = {};
   if (!Array.isArray(clean.sessions)) clean.sessions = [];
+  clean.otherDays = Array.isArray(clean.otherDays) ? [...new Set(clean.otherDays.filter(validDayKey))].sort() : [];
   clean.sessions.forEach(session => {
     session.note = typeof session.note === 'string' ? session.note.trim().slice(0, 2000) : '';
   });
@@ -210,6 +212,12 @@ function safeDataId(value) {
     && !['__proto__', 'prototype', 'constructor'].includes(value);
 }
 
+function validDayKey(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + 'T12:00:00');
+  return Number.isFinite(date.getTime()) && dateKey(date) === value;
+}
+
 function validRecordFields(row) {
   return isDataObject(row)
     && ['load', 'sets', 'reps'].every(key => row[key] === undefined
@@ -219,6 +227,7 @@ function validRecordFields(row) {
 
 function validLogCopy(log) {
   if (!isDataObject(log)) return false;
+  if (log.otherDays !== undefined && (!Array.isArray(log.otherDays) || !log.otherDays.every(validDayKey))) return false;
   if (log.sessions !== undefined && (!Array.isArray(log.sessions) || !log.sessions.every(session =>
     isDataObject(session) && typeof session.iso === 'string' && Number.isFinite(Date.parse(session.iso))
     && ['id', 'routineId', 'code', 'name', 'note'].every(key => session[key] === undefined || typeof session[key] === 'string')
@@ -239,7 +248,7 @@ function validLogCopy(log) {
 
 function validStoreCopy(value) {
   if (!isDataObject(value) || !Array.isArray(value.users) || !isDataObject(value.logs)) return false;
-  if (value.version !== undefined && ![3, 4].includes(value.version)) return false;
+  if (value.version !== undefined && ![3, 4, 5].includes(value.version)) return false;
   const ids = new Set();
   return value.users.every(user => {
     if (!isDataObject(user) || !safeDataId(user.id) || typeof user.name !== 'string' || ids.has(user.id)) return false;
@@ -297,7 +306,7 @@ function load() {
     try {
       const parsed = JSON.parse(raw);
       store = Object.assign(emptyStore(), parsed);
-      store.version = 4;
+      store.version = 5;
       if (!Array.isArray(store.users)) store.users = [];
       store.users.forEach(user => { store.logs[user.id] = normaliseLog(store.logs[user.id]); });
       return;
@@ -1425,21 +1434,16 @@ function renderWeek() {
     day.setDate(day.getDate() + index);
     const key = dateKey(day);
     const records = byDay.get(key) || [];
-    const routines = [...new Set(records.map(record => record.routine.id))];
+    const other = state.otherDays.includes(key);
+    const routines = calendarColors(records, other);
     return el('button', {
       class: 'week__day', type: 'button', 'aria-pressed': String(key === selected),
       'aria-current': key === today ? 'date' : null,
-      'aria-label': dateLong.format(day) + (records.length ? ' · ' + records.length + ' sesiones completadas' : ' · Sin sesiones registradas'),
+      'aria-label': dateLong.format(day) + (records.length ? ' · ' + records.length + ' sesiones completadas' : ' · Sin sesiones registradas') + (other ? ' · Otros' : ''),
       onclick: () => { weekSelectedDay = day; renderWeek(); $('weekDays').children[index].focus({ preventScroll: true }); }
     }, el('span', { class: 'week__weekday', text: label, 'aria-hidden': 'true' }),
     el('span', { class: 'week__number', 'aria-hidden': 'true' }, String(day.getDate()),
-      routines.length ? svg('svg', { class: 'week__ring', viewBox: '0 0 40 40', 'aria-hidden': 'true' },
-        routines.map((id, ringIndex) => svg('circle', {
-          class: 'week__ring--' + id, cx: 20, cy: 20, r: 18, pathLength: 100,
-          'stroke-dasharray': (100 / routines.length) + ' ' + (100 - 100 / routines.length),
-          'stroke-dashoffset': -ringIndex * 100 / routines.length,
-          transform: 'rotate(-90 20 20)'
-        }))) : null));
+      routines.length ? calendarRing(routines, 'week__ring') : null));
   }));
   const records = byDay.get(selected) || [];
   const label = selected === today ? 'Hoy' : dayLong.format(weekSelectedDay);
@@ -1449,7 +1453,51 @@ function renderWeek() {
           el('span', { class: 'week__check', text: '✓', 'aria-hidden': 'true' }),
           el('span', { class: 'home-list__main' }, el('small', { text: label }), 'Bloque ' + routine.code + ' · ' + routine.name),
           el('span', { class: 'week__badge', text: 'Completada' })))))
-    : el('p', { class: 'week__empty', text: label + ' · Sin sesiones registradas' }));
+    : el('p', { class: 'week__empty', text: label + (state.otherDays.includes(selected) ? ' · Otros' : ' · Sin sesiones registradas') }));
+}
+
+function calendarColors(records, other) {
+  const colors = [...new Set(records.map(record => record.routine.id))];
+  if (other) colors.push('others');
+  return colors;
+}
+
+function calendarRing(colors, className) {
+  return svg('svg', { class: className, viewBox: '0 0 40 40', 'aria-hidden': 'true' },
+    colors.map((id, index) => svg('circle', {
+      class: 'activity-ring--' + id, cx: 20, cy: 20, r: 18, pathLength: 100,
+      'stroke-dasharray': (100 / colors.length) + ' ' + (100 - 100 / colors.length),
+      'stroke-dashoffset': -index * 100 / colors.length, transform: 'rotate(-90 20 20)'
+    })));
+}
+
+/* Otros solo guarda la fecha: no participa en sesiones, ciclo ni estadísticas. */
+function setOtherDay(key, marked) {
+  if (!currentUser || !validDayKey(key) || key > dateKey(new Date())) return false;
+  const previous = state.otherDays;
+  state.otherDays = marked ? [...new Set(previous.concat(key))].sort() : previous.filter(day => day !== key);
+  try { writeStore(); }
+  catch (e) {
+    state.otherDays = previous;
+    toast('No se pudo guardar: almacenamiento no disponible');
+    return false;
+  }
+  return true;
+}
+
+function updateOtherDay() {
+  const key = $('otherDayDate').value;
+  const marked = state.otherDays.includes(key);
+  $('otherDayStatus').textContent = marked ? 'Este día está marcado en morado.' : 'Este día no está marcado.';
+  $('saveOtherDay').textContent = marked ? 'Quitar marca' : 'Marcar día';
+}
+
+function openOtherDay() {
+  const today = dateKey(new Date());
+  $('otherDayDate').value = today;
+  $('otherDayDate').max = today;
+  updateOtherDay();
+  openModal($('otherDayDialog'));
 }
 
 const monthLong = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' });
@@ -1492,18 +1540,15 @@ function renderCalendar() {
     const date = new Date(year, month, day);
     const key = dateKey(date);
     const records = byDay.get(key) || [];
-    const routineIds = [...new Set(records.map(record => record.routine.id))];
+    const other = state.otherDays.includes(key);
+    const routineIds = calendarColors(records, other);
     const labels = records.map(record => 'Bloque ' + record.routine.code + ': ' + record.routine.name);
+    if (other) labels.push('Otros');
     const classes = ['calendar__day'];
     if (key === today) classes.push('calendar__day--today');
-    if (routineIds.length === 1) classes.push('calendar__day--' + routineIds[0]);
-    if (routineIds.length > 1) classes.push('calendar__day--multiple');
+    if (routineIds.length) classes.push('calendar__day--marked');
     const description = labels.length ? ': ' + labels.join('; ') : ': sin entrenamiento registrado';
-    const markers = routineIds.length > 1
-      ? el('span', { class: 'calendar__markers', 'aria-hidden': 'true' },
-          routineIds.map(id => el('span', { class: 'calendar__marker calendar__marker--' + id }))
-        )
-      : null;
+    const markers = routineIds.length ? calendarRing(routineIds, 'calendar__ring') : null;
     cells.push(el('li', { class: 'calendar__cell' },
       el(records.length ? 'button' : 'span', {
         class: classes.join(' '),
@@ -2675,7 +2720,7 @@ async function importData(file) {
   // Copia completa (todos los atletas)
   if (Array.isArray(incoming.users)) {
     if (!validStoreCopy(incoming)) { toast('El archivo no es una copia válida'); return; }
-    const restored = Object.assign(emptyStore(), incoming, { version: 4, logs: {} });
+    const restored = Object.assign(emptyStore(), incoming, { version: 5, logs: {} });
     restored.users.forEach(user => { restored.logs[user.id] = normaliseLog(incoming.logs[user.id]); });
     const ok = await confirmAction('Restaurar copia',
       'La copia trae ' + incoming.users.length + (incoming.users.length === 1 ? ' atleta' : ' atletas')
@@ -2724,7 +2769,7 @@ async function importData(file) {
 async function resetData() {
   const ok = await confirmAction('Borrar el registro',
     'Se borran las ' + state.sessions.length + ' sesiones de ' + currentUser.name
-    + ' y lo anotado hoy. El resto de atletas no se toca. Descarga una copia antes si quieres conservarlo.',
+    + ', las marcas de Otros y lo anotado hoy. El resto de atletas no se toca. Descarga una copia antes si quieres conservarlo.',
     'Borrar');
   if (!ok) return;
   state = emptyLog();
@@ -3014,6 +3059,20 @@ function renderAll() {
 }
 
 function bindEvents() {
+  $('addOtherDay').addEventListener('click', openOtherDay);
+  $('otherDayDate').addEventListener('change', updateOtherDay);
+  $('cancelOtherDay').addEventListener('click', () => $('otherDayDialog').close());
+  $('otherDayDialog').addEventListener('close', () => $('addOtherDay').focus());
+  $('otherDayForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const key = $('otherDayDate').value;
+    const marked = state.otherDays.includes(key);
+    if (!setOtherDay(key, !marked)) return;
+    renderCalendar();
+    renderWeek();
+    $('otherDayDialog').close();
+    toast(marked ? 'Marca de Otros quitada' : 'Día marcado en Otros');
+  });
   // Selector de atleta
   $('profileList').addEventListener('click', event => {
     const open = event.target.closest('[data-user]');

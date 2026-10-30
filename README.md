@@ -53,6 +53,13 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   hombro y abdomen verde mientras se registra cada entrenamiento.
 - **Calendario**: muestra los días entrenados con un círculo del color del bloque
   realizado; permite consultar también meses anteriores.
+  Debajo está **Otros**: «Marcar un día» abre un diálogo con el selector de fecha
+  nativo del dispositivo. Permite marcar o desmarcar una fecha pasada o actual
+  en morado, sin nombres, notas ni entradas en el historial. Solo se guarda la
+  fecha por atleta, también en las copias JSON. No cuenta como sesión ni cambia
+  el ciclo, el ritmo, el tonelaje o las estadísticas. Los calendarios mensual y
+  semanal dividen el círculo en segmentos iguales por bloque y Otros: gimnasio
+  y Otros usan dos mitades; varios bloques usan sus respectivos colores.
   Tocar un día entrenado abre sus sesiones en el historial, restablece el orden
   por fecha y las enmarca durante cinco segundos con el color actual de la
   interfaz. Si hay varias sesiones ese día, se resaltan todas.
@@ -230,10 +237,13 @@ versión; el borrador se guarda antes de salir.
 
 ## Datos anteriores
 
-El contenido del almacén pasa a la versión 4 para añadir `note` a cada sesión.
-Se conserva la clave `gim.v3` del navegador. Los datos y copias de versión 3 se
-leen con sensaciones vacías cuando no existen; las nuevas copias indican versión
-4. Las sensaciones se validan como texto y se limitan a 2000 caracteres.
+El contenido del almacén pasa a la versión 5 para añadir `otherDays`, una lista
+de fechas locales (`AAAA-MM-DD`) por atleta para las marcas de Otros. Se conserva
+la clave `gim.v3` del navegador y se leen las copias de versiones 3 y 4 con esa
+lista vacía cuando no existe. Las nuevas copias indican versión 5; se rechazan
+fechas inválidas al importar. La versión 4 añadió `note` a cada sesión: los datos
+anteriores conservan sensaciones vacías, y las nuevas se validan como texto y se
+limitan a 2000 caracteres.
 
 La primera versión guardaba en la clave `gymData` de `localStorage`, y la
 siguiente en `gim.v2`. Al abrir el sitio, lo que haya se convierte al formato

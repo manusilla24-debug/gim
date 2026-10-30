@@ -29,6 +29,7 @@
   --routine-a:      #C95718;
   --routine-b:      #1A5FA8;
   --routine-c:      #23814B;
+  --activity-other: #8050B5;
 
   /* Estado (siempre acompañado de signo o rótulo, nunca color a secas) */
   --good:           #0F6A1A;
@@ -373,9 +374,10 @@ body {
 .week__day[aria-current="date"] .week__number { box-shadow: inset 0 0 0 1px var(--accent); }
 .week__day[aria-pressed="true"] .week__number { background: var(--accent); color: var(--accent-on); }
 .week__ring { position: absolute; top: -4px; left: -4px; width: 40px; height: 40px; fill: none; stroke-width: 2.5; pointer-events: none; }
-.week__ring--a { stroke: var(--routine-a); }
-.week__ring--b { stroke: var(--routine-b); }
-.week__ring--c { stroke: var(--routine-c); }
+.activity-ring--a { stroke: var(--routine-a); }
+.activity-ring--b { stroke: var(--routine-b); }
+.activity-ring--c { stroke: var(--routine-c); }
+.activity-ring--others { stroke: var(--activity-other); }
 .week__list { display: grid; gap: 8px; list-style: none; padding: 0; margin: 0; }
 .week__session { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); color: var(--ink); text-align: left; cursor: pointer; }
 .week__session:hover { border-color: var(--accent); }
@@ -1320,10 +1322,8 @@ tbody td:first-child { font-family: var(--font-ui); }
   font-variant-numeric: tabular-nums;
 }
 .calendar__day--today { border-color: var(--line-strong); color: var(--ink); }
-.calendar__day--a { border: 3px solid var(--routine-a); color: var(--ink); }
-.calendar__day--b { border: 3px solid var(--routine-b); color: var(--ink); }
-.calendar__day--c { border: 3px solid var(--routine-c); color: var(--ink); }
-.calendar__day--multiple { border-color: var(--line-strong); }
+.calendar__day--marked { border-color: transparent; color: var(--ink); }
+.calendar__ring { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke-width: 2; pointer-events: none; }
 button.calendar__day { cursor: pointer; font-family: inherit; }
 button.calendar__day:hover { background: var(--accent-wash); }
 button.calendar__day:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -1332,21 +1332,25 @@ button.calendar__day:focus-visible { outline: 2px solid var(--accent); outline-o
   .entry[tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
   .entry.entry--highlight[tabindex="-1"]:focus { outline: 3px solid var(--accent); outline-offset: -3px; }
 }
-.calendar__markers {
-  position: absolute;
-  right: -1px;
-  bottom: -1px;
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  background: var(--surface);
-  border-radius: 99px;
-}
-.calendar__marker,
 .calendar__key { display: inline-block; width: 7px; height: 7px; border-radius: 50%; }
-.calendar__marker--a, .calendar__key--a { background: var(--routine-a); }
-.calendar__marker--b, .calendar__key--b { background: var(--routine-b); }
-.calendar__marker--c, .calendar__key--c { background: var(--routine-c); }
+.calendar__key--a { background: var(--routine-a); }
+.calendar__key--b { background: var(--routine-b); }
+.calendar__key--c { background: var(--routine-c); }
+.calendar__key--others { background: var(--activity-other); }
+.other-days { margin-top: 24px; }
+.other-days .card__head { border-bottom: 0; }
+.other-days .card__title { display: flex; align-items: center; gap: 8px; }
+#otherDayDate { width: 100%; min-width: 0; min-height: 46px; padding: 12px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--raised); color: var(--ink); font: inherit; color-scheme: inherit; }
+.other-day-dialog { max-height: calc(100dvh - 24px); overflow-y: auto; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --activity-other: #BE94F2; }
+}
+:root[data-theme="dark"] { --activity-other: #BE94F2; }
+@media (max-width: 640px) {
+  .other-day-dialog { width: 100%; max-width: 100%; max-height: 90dvh; margin: auto 0 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .other-day-dialog .dialog__actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .other-days .card__head { align-items: flex-start; }
+}
 .calendar__legend { display: flex; flex-wrap: wrap; gap: 10px 18px; color: var(--muted); font-size: 13px; }
 .calendar__legend li { display: inline-flex; align-items: center; gap: 6px; }
 .calendar__key { width: 10px; height: 10px; }

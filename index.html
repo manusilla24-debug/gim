@@ -374,7 +374,7 @@
           <div>
             <p class="eyebrow">Registro de entrenos</p>
             <h2 class="panel-head__title" id="calendarTitle">Calendario</h2>
-            <p class="panel-head__sub">Cada círculo indica el bloque que entrenaste ese día.</p>
+            <p class="panel-head__sub">Cada círculo indica los bloques entrenados y los días marcados en Otros.</p>
           </div>
         </header>
 
@@ -398,7 +398,18 @@
           <li><span class="calendar__key calendar__key--a" aria-hidden="true"></span> Pecho y tríceps</li>
           <li><span class="calendar__key calendar__key--b" aria-hidden="true"></span> Espalda y bíceps</li>
           <li><span class="calendar__key calendar__key--c" aria-hidden="true"></span> Hombro y abdomen</li>
+          <li><span class="calendar__key calendar__key--others" aria-hidden="true"></span> Otros</li>
         </ul>
+
+        <section class="card other-days" aria-labelledby="otherDaysTitle">
+          <div class="card__head">
+            <div>
+              <h3 class="card__title" id="otherDaysTitle"><span class="calendar__key calendar__key--others" aria-hidden="true"></span> Otros</h3>
+              <p class="card__sub">¿Te has movido fuera del gimnasio? Marca el día en morado, sin añadir detalles ni sesiones al historial.</p>
+            </div>
+            <button class="btn btn--outline" type="button" id="addOtherDay" aria-haspopup="dialog">Marcar un día</button>
+          </div>
+        </section>
       </section>
     </div>
   </div>
@@ -422,6 +433,24 @@
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<dialog id="otherDayDialog" class="other-day-dialog" aria-labelledby="otherDayTitle" aria-describedby="otherDayHelp">
+  <form id="otherDayForm">
+    <div class="dialog__body">
+      <h2 class="dialog__title" id="otherDayTitle">Otros</h2>
+      <p class="dialog__text" id="otherDayHelp">Elige el día que realizaste otra actividad. Solo se guarda la marca en el calendario.</p>
+      <p class="field">
+        <label class="field__label" for="otherDayDate">Fecha</label>
+        <input type="date" id="otherDayDate" required>
+      </p>
+      <p class="dialog__text" id="otherDayStatus" role="status"></p>
+    </div>
+    <div class="dialog__actions">
+      <button class="btn btn--quiet" type="button" id="cancelOtherDay">Cancelar</button>
+      <button class="btn btn--primary" type="submit" id="saveOtherDay">Marcar día</button>
+    </div>
+  </form>
+</dialog>
 
 <dialog id="confirmDialog" aria-labelledby="dialogTitle">
   <div class="dialog__body">

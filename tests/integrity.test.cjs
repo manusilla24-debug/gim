@@ -56,6 +56,9 @@ vm.runInContext(read('assets/app.js').replace(/boot\(\);\s*$/, ''), context);
       { users: [{ id: 'bad', name: 'Bad' }], logs: { bad: { draft: null, sessions: [] } } },
       { users: [{ id: '__proto__', name: 'Bad' }], logs: {} },
       { sessions: [null] },
+      { sessions: [], otherDays: '2026-10-01' },
+      { sessions: [], otherDays: ['2026-02-30'] },
+      { sessions: [], otherDays: [null] },
       { sessions: [{ iso: 'fecha inválida', entries: [] }] },
       { sessions: [{ iso: old.iso, entries: [null] }] },
       { sessions: [{ ...old, note: { text: 'No es texto' } }] },
@@ -112,25 +115,55 @@ vm.runInContext(read('assets/app.js').replace(/boot\(\);\s*$/, ''), context);
     // Sesiones anteriores sin sensaciones y copias nuevas con texto multilínea.
     const withoutNote = { ...old }; delete withoutNote.note;
     assert.equal(normaliseLog({ sessions: [withoutNote] }).sessions[0].note, '');
-    assert.equal(emptyStore().version, 4);
+    assert.equal(emptyStore().version, 5);
     const withNote = { ...payload, version: 4, logs: { test: { ...emptyLog(), sessions: [{ ...old, note: '  Buena energía.\\nÚltima serie difícil.  ' }] } } };
     await importData(file(withNote));
     state = store.logs.test;
     assert.equal(state.sessions[0].note, 'Buena energía.\\nÚltima serie difícil.');
-    assert.equal(store.version, 4);
+    assert.equal(store.version, 5);
     const savedNote = JSON.parse(localStorage.getItem(STORE_KEY));
     assert.equal(savedNote.logs.test.sessions[0].note, state.sessions[0].note);
     await importData(file(savedNote));
     assert.equal(store.logs.test.sessions[0].note, state.sessions[0].note);
     assert.equal(normaliseLog({ sessions: [{ ...old, note: 'x'.repeat(2500) }] }).sessions[0].note.length, 2000);
     await importData(file(payload));
-    assert.equal(store.version, 4);
+    assert.equal(store.version, 5);
     assert.equal(store.logs.test.sessions[0].note, '');
     localStorage.setItem(STORE_KEY, JSON.stringify(payload));
     load();
-    assert.equal(store.version, 4);
+    assert.equal(store.version, 5);
     assert.equal(store.logs.test.sessions[0].note, '');
     assert.equal(normaliseLog({ sessions: [] }).sessions.length, 0);
+    // Otros solo conserva fechas válidas, sin modificar el historial ni el ciclo.
+    assert.deepEqual(Array.from(normaliseLog({}).otherDays), []);
+    assert.deepEqual(Array.from(normaliseLog({ otherDays: ['2026-10-01', null, '2026-02-30', '2026-10-01'] }).otherDays), ['2026-10-01']);
+    assert.equal(validDayKey('2024-02-29'), true);
+    assert.equal(validDayKey('2026-02-29'), false);
+    currentUser = store.users[0];
+    state = store.logs.test;
+    const unchangedSessions = JSON.stringify(state.sessions);
+    const unchangedDraft = JSON.stringify(state.draft);
+    const unchangedCycle = state.nextId;
+    assert.equal(setOtherDay('2026-10-01', true), true);
+    assert.equal(setOtherDay('2026-10-01', true), true);
+    assert.deepEqual(Array.from(state.otherDays), ['2026-10-01']);
+    assert.equal(JSON.stringify(state.sessions), unchangedSessions);
+    assert.equal(JSON.stringify(state.draft), unchangedDraft);
+    assert.equal(state.nextId, unchangedCycle);
+    assert.equal(setOtherDay('2099-01-01', true), false);
+    assert.equal(setOtherDay('2026-02-30', true), false);
+    assert.deepEqual(Array.from(calendarColors([{ routine: SPLIT[0] }, { routine: SPLIT[0] }], true)), ['a', 'others']);
+    assert.deepEqual(Array.from(calendarColors([{ routine: SPLIT[0] }, { routine: SPLIT[1] }], false)), ['a', 'b']);
+    const otherCopy = JSON.parse(localStorage.getItem(STORE_KEY));
+    await importData(file(otherCopy));
+    state = store.logs.test;
+    currentUser = store.users[0];
+    assert.deepEqual(Array.from(state.otherDays), ['2026-10-01']);
+    store.users.push({ id: 'second', name: 'Otro atleta' });
+    store.logs.second = emptyLog();
+    assert.deepEqual(Array.from(store.logs.second.otherDays), []);
+    assert.equal(setOtherDay('2026-10-01', false), true);
+    assert.deepEqual(Array.from(state.otherDays), []);
     globalThis.importFileForFailure = file(payload);
   })()`, context);
 
@@ -139,6 +172,8 @@ vm.runInContext(read('assets/app.js').replace(/boot\(\);\s*$/, ''), context);
   await vm.runInContext(`(async () => {
     const previous = store;
     const previousState = state;
+    assert.equal(setOtherDay('2026-10-02', true), false);
+    assert.deepEqual(Array.from(state.otherDays), []);
     await importData(importFileForFailure);
     assert.equal(store, previous);
     assert.equal(state, previousState);
