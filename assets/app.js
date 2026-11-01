@@ -1534,10 +1534,12 @@ function renderCalendar() {
 
   $('calendarMonth').textContent = monthLong.format(first);
   const cells = [];
-  for (let i = 0; i < offset; i += 1) cells.push(el('li', { class: 'calendar__cell', 'aria-hidden': 'true' }));
+  const totalCells = Math.ceil((offset + totalDays) / 7) * 7;
 
-  for (let day = 1; day <= totalDays; day += 1) {
+  for (let index = 0; index < totalCells; index += 1) {
+    const day = index - offset + 1;
     const date = new Date(year, month, day);
+    const outsideMonth = day < 1 || day > totalDays;
     const key = dateKey(date);
     const records = byDay.get(key) || [];
     const other = state.otherDays.includes(key);
@@ -1545,6 +1547,7 @@ function renderCalendar() {
     const labels = records.map(record => 'Bloque ' + record.routine.code + ': ' + record.routine.name);
     if (other) labels.push('Otros');
     const classes = ['calendar__day'];
+    if (outsideMonth) classes.push('calendar__day--outside');
     if (key === today) classes.push('calendar__day--today');
     if (routineIds.length) classes.push('calendar__day--marked');
     const description = labels.length ? ': ' + labels.join('; ') : ': sin entrenamiento registrado';
@@ -1555,8 +1558,9 @@ function renderCalendar() {
         type: records.length ? 'button' : null,
         onclick: records.length ? () => openHistoryDay(key) : null,
         'aria-current': key === today ? 'date' : null,
-        'aria-label': dayLong.format(date) + description + (records.length ? '. Ver en el historial' : '')
-      }, String(day), markers)
+        'aria-label': dayLong.format(date) + (outsideMonth ? (day < 1 ? ' · mes anterior' : ' · mes siguiente') : '')
+          + description + (records.length ? '. Ver en el historial' : '')
+      }, String(date.getDate()), markers)
     ));
   }
   $('calendarGrid').replaceChildren(...cells);

@@ -1324,6 +1324,8 @@ tbody td:first-child { font-family: var(--font-ui); }
 .calendar__day--today { border-color: var(--line-strong); color: var(--ink); }
 .calendar__day--marked { border-color: transparent; color: var(--ink); }
 .calendar__ring { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke-width: 2; pointer-events: none; }
+.calendar__day--outside { color: var(--muted); }
+.calendar__day--outside .calendar__ring { opacity: .55; }
 button.calendar__day { cursor: pointer; font-family: inherit; }
 button.calendar__day:hover { background: var(--accent-wash); }
 button.calendar__day:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

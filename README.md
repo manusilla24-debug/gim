@@ -53,6 +53,9 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   hombro y abdomen verde mientras se registra cada entrenamiento.
 - **Calendario**: muestra los días entrenados con un círculo del color del bloque
   realizado; permite consultar también meses anteriores.
+  Completa la primera y última semana con fechas del mes anterior y siguiente.
+  Esas fechas y sus círculos aparecen atenuados, conservando el acceso a las
+  sesiones para consultar una semana completa sin cambiar de mes.
   Debajo está **Otros**: «Marcar un día» abre un diálogo con el selector de fecha
   nativo del dispositivo. Permite marcar o desmarcar una fecha pasada o actual
   en morado, sin nombres, notas ni entradas en el historial. Solo se guarda la
@@ -193,6 +196,7 @@ Las comprobaciones del entrenador se ejecutan con Node, sin instalar paquetes:
 ```bash
 node tests/coach.test.cjs
 node tests/integrity.test.cjs
+node tests/calendar.test.cjs
 node tests/offline.test.cjs
 node --check assets/app.js
 node --check assets/coach-knowledge.js
