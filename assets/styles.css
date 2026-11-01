@@ -21,7 +21,7 @@
   --ink-2:          #41474D;
   --muted:          #5F666C;
 
-  /* Acento del bloque activo: A naranja, B azul, C verde. */
+  /* Acento del bloque activo: A naranja, B azul, C verde, D rojo. */
   --accent:         #C95718;
   --accent-hover:   #A94611;
   --accent-on:      #FFFFFF;
@@ -29,6 +29,7 @@
   --routine-a:      #C95718;
   --routine-b:      #1A5FA8;
   --routine-c:      #23814B;
+  --routine-d:      #B9363E;
   --activity-other: #8050B5;
 
   /* Estado (siempre acompañado de signo o rótulo, nunca color a secas) */
@@ -66,6 +67,7 @@
     --routine-a:     #ED864C;
     --routine-b:     #6DA9E5;
     --routine-c:     #55B878;
+    --routine-d:     #F07C82;
     --good:          #3FA34D;
     --crit:          #E06A66;
   }
@@ -89,6 +91,7 @@
   --routine-a:     #ED864C;
   --routine-b:     #6DA9E5;
   --routine-c:     #55B878;
+  --routine-d:     #F07C82;
   --good:          #3FA34D;
   --crit:          #E06A66;
 }
@@ -110,6 +113,16 @@
   --accent-hover: #19663A;
   --accent-wash: rgba(35, 129, 75, 0.08);
 }
+:root[data-routine="d"] {
+  --accent: var(--routine-d);
+  --accent-hover: #972932;
+  --accent-wash: rgba(185, 54, 62, 0.08);
+}
+:root[data-theme="dark"][data-routine="d"] {
+  --accent: var(--routine-d);
+  --accent-hover: #FFA0A5;
+  --accent-wash: rgba(240, 124, 130, 0.12);
+}
 :root[data-theme="dark"][data-routine="a"] {
   --accent: #ED864C;
   --accent-hover: #FFAA78;
@@ -126,6 +139,11 @@
   --accent-wash: rgba(85, 184, 120, 0.12);
 }
 @media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-routine="d"] {
+    --accent: var(--routine-d);
+    --accent-hover: #FFA0A5;
+    --accent-wash: rgba(240, 124, 130, 0.12);
+  }
   :root:not([data-theme="light"])[data-routine="a"] {
     --accent: #ED864C;
     --accent-hover: #FFAA78;
@@ -377,6 +395,7 @@ body {
 .activity-ring--a { stroke: var(--routine-a); }
 .activity-ring--b { stroke: var(--routine-b); }
 .activity-ring--c { stroke: var(--routine-c); }
+.activity-ring--d { stroke: var(--routine-d); }
 .activity-ring--others { stroke: var(--activity-other); }
 .week__list { display: grid; gap: 8px; list-style: none; padding: 0; margin: 0; }
 .week__session { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); color: var(--ink); text-align: left; cursor: pointer; }
@@ -402,6 +421,7 @@ body {
 .home-list__code--a { color: var(--routine-a); }
 .home-list__code--b { color: var(--routine-b); }
 .home-list__code--c { color: var(--routine-c); }
+.home-list__code--d { color: var(--routine-d); }
 .home-list__rank { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
 .home-list__main { min-width: 0; font-weight: 600; line-height: 1.25; }
 .home-list__main small { display: block; margin-top: 4px; font-size: 11px; font-weight: 400; color: var(--muted); }
@@ -660,7 +680,7 @@ body {
   border-bottom: 1px solid var(--line-strong);
 }
 
-/* Ciclo A / B / C */
+/* Ciclo A / B / C / D */
 .split { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
 
 .split__btn {
@@ -739,7 +759,7 @@ body {
 .stat__note { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
 
 @media (max-width: 960px) {
-  .split { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .split__flag { display: none; }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .stat__value { font-size: 22px; }
@@ -1136,6 +1156,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .comparison-chart[data-routine="a"], .comparison-legend[data-routine="a"] { --comparison-base: var(--routine-a); }
 .comparison-chart[data-routine="b"], .comparison-legend[data-routine="b"] { --comparison-base: var(--routine-b); }
 .comparison-chart[data-routine="c"], .comparison-legend[data-routine="c"] { --comparison-base: var(--routine-c); }
+.comparison-chart[data-routine="d"], .comparison-legend[data-routine="d"] { --comparison-base: var(--routine-d); }
 .comparison-line { fill: none; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
 .comparison-line--1 { stroke: var(--comparison-base); }
 .comparison-line--2 { stroke: color-mix(in srgb, var(--comparison-base) 68%, var(--ink)); }
@@ -1338,6 +1359,7 @@ button.calendar__day:focus-visible { outline: 2px solid var(--accent); outline-o
 .calendar__key--a { background: var(--routine-a); }
 .calendar__key--b { background: var(--routine-b); }
 .calendar__key--c { background: var(--routine-c); }
+.calendar__key--d { background: var(--routine-d); }
 .calendar__key--others { background: var(--activity-other); }
 .other-days { margin-top: 24px; }
 .other-days .card__head { border-bottom: 0; }

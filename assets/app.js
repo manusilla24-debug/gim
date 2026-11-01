@@ -52,6 +52,10 @@ const SPLIT = [
       },
       { id: 'c4', name: 'Abdominales', tracksLoad: false, tracksSetsOnly: true }
     ]
+  },
+  {
+    id: 'd', code: 'D', name: 'Pierna', focus: 'Tren inferior',
+    exercises: []
   }
 ];
 
@@ -1006,7 +1010,7 @@ function coachPersonalize(topic, exercise) {
       parts.push('Si eres un adulto sano y quieres ver la cuenta orientativa, dime «peso 80 kg», usando tu peso real. No confundiré la carga de un ejercicio con tu peso corporal.');
     }
   }
-  if (topic.id === 'frequency' && coachConversation.days) parts.push('Me has dicho ' + coachConversation.days + ' días por semana. Puedes recorrer A → B → C en ese orden y continuar el ciclo la semana siguiente; eso describe el ciclo existente, que no cubre piernas.');
+  if (topic.id === 'frequency' && coachConversation.days) parts.push('Me has dicho ' + coachConversation.days + ' días por semana. Puedes recorrer A → B → C → D en ese orden y continuar el ciclo la semana siguiente. El bloque D de pierna todavía no tiene ejercicios definidos.');
   if (topic.id === 'order' && exercise) parts.push('Si ' + exercise.name + ' es tu prioridad, compara sus referencias en una posición parecida dentro de la sesión.');
   if (['load', 'effort'].includes(topic.id) && exercise) {
     const report = coachConversation.reports[exercise.id];
@@ -1713,7 +1717,12 @@ function renderLog() {
     );
   });
 
-  $('logRows').replaceChildren(...rows);
+  $('logRows').replaceChildren(...(rows.length ? rows : [
+    el('li', { class: 'empty' },
+      el('p', { class: 'empty__title', text: 'Sin ejercicios todavía' }),
+      el('p', { text: 'Este bloque está preparado para añadir ejercicios más adelante.' })
+    )
+  ]));
 }
 
 function previousLabel(record, tracksLoad, setsOnly = false) {

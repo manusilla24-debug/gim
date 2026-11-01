@@ -1,9 +1,10 @@
 # Registro de Fuerza
 
-Registro de entrenamiento de fuerza para un ciclo de tres bloques (empuje,
-tracción, hombro y abdomen). Se anota la carga, las series y las repeticiones de
-cada ejercicio; al cerrar la sesión pasa al historial y el registro avanza al
-bloque siguiente.
+Registro de entrenamiento de fuerza para un ciclo de cuatro bloques (empuje,
+tracción, hombro y abdomen, y pierna). Se anota la carga, las series y las
+repeticiones de cada ejercicio; al cerrar la sesión pasa al historial y el registro avanza al
+bloque siguiente. El bloque D «Pierna» está preparado en rojo, sin ejercicios
+predefinidos; muestra un aviso mientras esté vacío.
 
 ## Diseño visual
 
@@ -49,8 +50,8 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   última carga y variación. El gráfico tiene su tabla equivalente. Debajo se
   pueden comparar hasta tres sesiones de un mismo bloque, ejercicio a ejercicio,
   mediante tres líneas de carga y una tabla con cargas, series y repeticiones.
-- **Color por bloque**: pecho y tríceps usa naranja, espalda y bíceps azul, y
-  hombro y abdomen verde mientras se registra cada entrenamiento.
+- **Color por bloque**: pecho y tríceps usa naranja, espalda y bíceps azul,
+  hombro y abdomen verde, y pierna rojo mientras se registra cada entrenamiento.
 - **Calendario**: muestra los días entrenados con un círculo del color del bloque
   realizado; permite consultar también meses anteriores.
   Completa la primera y última semana con fechas del mes anterior y siguiente.
@@ -76,7 +77,7 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   incluye en las copias JSON; dejarla vacía no muestra un apartado adicional.
 - **Orden del historial**: el botón cuadrado de flechas junto al título permite
   ver todas las sesiones de la más reciente a la más antigua o al revés. Las
-  opciones de bloque A, B y C muestran solo ese bloque, con sus sesiones más
+  opciones de bloque A, B, C y D muestran solo ese bloque, con sus sesiones más
   recientes primero. La consulta no altera los registros y vuelve al orden
   inicial al recargar o cambiar de atleta. El cuadrado de flechas contiene un
   selector nativo como el de Ejercicio en Progresión: al tocarlo directamente,

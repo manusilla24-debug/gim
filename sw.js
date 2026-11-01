@@ -1,7 +1,7 @@
 /* Service worker: deja la aplicación utilizable sin conexión.
    Al cambiar archivos, sube VERSION para que se renueve la caché. */
 
-const VERSION = 'gim-2026-11-01-calendario-semanas-completas';
+const VERSION = 'gim-2026-11-01-bloque-d-pierna';
 const FONTS = 'gim-fuentes-1';
 
 const SHELL = [
