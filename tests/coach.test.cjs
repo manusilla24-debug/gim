@@ -110,6 +110,12 @@ assert.equal(state.activeId, 'a');
 assert.equal(coachConversation.focus.id, 'b1');
 assert.match(messages.at(-1), /apoyo de piernas/);
 answerCoach('¿Cómo hago sentadilla?');
+assert.equal(state.activeId, 'a');
+assert.equal(coachConversation.focus.id, 'd1');
+assert.equal(coachConversation.focus.routineId, 'd');
+assert.doesNotMatch(messages.at(-1), /apoyo de piernas/);
+// Un movimiento fuera de la rutina sigue sin heredar el ejercicio anterior.
+answerCoach('¿Cómo hago peso muerto?');
 assert.equal(coachConversation.focus, null);
 assert.match(messages.at(-1), /piernas/);
 assert.doesNotMatch(messages.at(-1), /apoyo de piernas/);

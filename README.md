@@ -3,8 +3,10 @@
 Registro de entrenamiento de fuerza para un ciclo de cuatro bloques (empuje,
 tracción, hombro y abdomen, y pierna). Se anota la carga, las series y las
 repeticiones de cada ejercicio; al cerrar la sesión pasa al historial y el registro avanza al
-bloque siguiente. El bloque D «Pierna» está preparado en rojo, sin ejercicios
-predefinidos; muestra un aviso mientras esté vacío.
+bloque siguiente. El bloque D «Pierna», en rojo, incluye sentadilla libre,
+prensa, extensión de gemelos y curl femoral tumbado, en ese orden. El bloque B
+«Espalda y bíceps» termina con curl femoral sentado. Todos usan los campos
+habituales de carga, series, repeticiones y notas.
 
 ## Diseño visual
 

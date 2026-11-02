@@ -35,7 +35,8 @@ const SPLIT = [
         defaultVariant: 'Remo en polea baja'
       },
       { id: 'b4', name: 'Curl de bíceps', equip: 'Barra Z' },
-      { id: 'b5', name: 'Curl de bíceps martillo' }
+      { id: 'b5', name: 'Curl de bíceps martillo' },
+      { id: 'b6', name: 'Curl femoral sentado' }
     ]
   },
   {
@@ -55,7 +56,12 @@ const SPLIT = [
   },
   {
     id: 'd', code: 'D', name: 'Pierna', focus: 'Tren inferior',
-    exercises: []
+    exercises: [
+      { id: 'd1', name: 'Sentadilla libre' },
+      { id: 'd2', name: 'Prensa' },
+      { id: 'd3', name: 'Extensión de gemelos' },
+      { id: 'd4', name: 'Curl femoral tumbado' }
+    ]
   }
 ];
 
@@ -1010,7 +1016,7 @@ function coachPersonalize(topic, exercise) {
       parts.push('Si eres un adulto sano y quieres ver la cuenta orientativa, dime «peso 80 kg», usando tu peso real. No confundiré la carga de un ejercicio con tu peso corporal.');
     }
   }
-  if (topic.id === 'frequency' && coachConversation.days) parts.push('Me has dicho ' + coachConversation.days + ' días por semana. Puedes recorrer A → B → C → D en ese orden y continuar el ciclo la semana siguiente. El bloque D de pierna todavía no tiene ejercicios definidos.');
+  if (topic.id === 'frequency' && coachConversation.days) parts.push('Me has dicho ' + coachConversation.days + ' días por semana. Puedes recorrer A → B → C → D en ese orden y continuar el ciclo la semana siguiente.');
   if (topic.id === 'order' && exercise) parts.push('Si ' + exercise.name + ' es tu prioridad, compara sus referencias en una posición parecida dentro de la sesión.');
   if (['load', 'effort'].includes(topic.id) && exercise) {
     const report = coachConversation.reports[exercise.id];
