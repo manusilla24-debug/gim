@@ -9,6 +9,7 @@ const values = new Map();
 let blocked = false;
 const context = vm.createContext({
   console, Intl, Date, Map, Set, assert, setTimeout, clearTimeout,
+  navigator: { clipboard: { writeText: async () => {} } },
   localStorage: {
     getItem: key => values.get(key) || null,
     setItem(key, value) { if (blocked) throw new Error('Sin espacio'); values.set(key, value); }
@@ -46,6 +47,31 @@ vm.runInContext(read('assets/app.js').replace(/boot\(\);\s*$/, ''), context);
     const session = (id, iso, entries, routineId = 'a') => ({ id, iso, entries, routineId, code: routineId.toUpperCase(), name: 'Bloque', volume: volumeOf(entries) });
     const old = session('old', '2026-10-01T12:00:00Z', [entry('a1', 'Press de banca inclinado', 40), entry('a2', 'Aperturas en máquina', 20)]);
     const recent = session('recent', '2026-10-03T12:00:00Z', [entry('a2', 'Aperturas en máquina', 25)]);
+    // Copiar una sesión concreta no modifica el historial ni el borrador.
+    state = emptyLog();
+    state.sessions = [old, recent];
+    old.entries[0].note = 'Pausa abajo';
+    old.note = 'Buenas sensaciones';
+    const snapshot = JSON.stringify(state);
+    let copied = '';
+    navigator.clipboard.writeText = async text => { copied = text; };
+    await copySession('old');
+    assert.match(copied, /1\. Press de banca inclinado — 40 kg · 3×10/);
+    assert.match(copied, /Nota: Pausa abajo/);
+    assert.ok(copied.includes('Sensaciones del entrenamiento:'));
+    assert.ok(copied.includes('Buenas sensaciones'));
+    assert.ok(copied.includes('Tonelaje total: ' + kg(1800)));
+    assert.doesNotMatch(copied, /25 kg/);
+    assert.equal(JSON.stringify(state), snapshot);
+    const abs = session('abs', old.iso, [{ name: 'Abdominales', sets: 4, reps: 0, load: 0 }], 'c');
+    assert.match(sessionCopyText(abs), /Abdominales — 4 series/);
+    abs.entries[0].sets = 0;
+    abs.entries[0].reps = 60;
+    assert.match(sessionCopyText(abs), /Abdominales — 60 reps/);
+    navigator.clipboard.writeText = async () => { throw new Error('Permiso denegado'); };
+    await copySession('old');
+    assert.match(notices.at(-1), /No se pudo copiar/);
+    assert.equal(JSON.stringify(state), snapshot);
     const payload = { version: 3, users: [{ id: 'test', name: 'Prueba' }], logs: { test: { ...emptyLog(), sessions: [old, recent], draft: { a: { a1: { load: '42,5', sets: '3', reps: '10', note: 'Nota' } } } } } };
     const file = value => ({ text: async () => JSON.stringify(value) });
     store = emptyStore();

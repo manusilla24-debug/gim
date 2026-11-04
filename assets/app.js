@@ -1756,6 +1756,44 @@ function iconTrash() {
 
 /* --- Historial ---------------------------------------------------------- */
 
+function iconCopy() {
+  return svg('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.7', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', width: '16', height: '16' },
+    svg('rect', { x: '8', y: '8', width: '12', height: '12', rx: '2' }),
+    svg('path', { d: 'M16 8V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h4' })
+  );
+}
+
+/* Plantilla única: usa lo guardado en la sesión, incluidas variantes y extras. */
+function sessionCopyText(session) {
+  const when = new Date(session.iso);
+  const lines = [
+    'Registro de Fuerza',
+    'Fecha: ' + dateLong.format(when) + ' · ' + timeShort.format(when),
+    'Bloque ' + session.code + ' · ' + session.name,
+    '',
+    'Ejercicios'
+  ];
+  session.entries.forEach((entry, index) => {
+    lines.push((index + 1) + '. ' + entry.name + ' — ' + historyEntryLabel(session, entry));
+    if (entry.note) lines.push('   Nota: ' + entry.note);
+  });
+  if (!session.entries.length) lines.push('Sin ejercicios registrados.');
+  lines.push('', 'Tonelaje total: ' + kg(Math.round(num(session.volume))));
+  if (session.note) lines.push('', 'Sensaciones del entrenamiento:', session.note);
+  return lines.join('\n');
+}
+
+async function copySession(id) {
+  const session = state.sessions.find(item => item.id === id);
+  if (!session) return;
+  try {
+    await navigator.clipboard.writeText(sessionCopyText(session));
+    toast('Rutina del ' + dateShort.format(new Date(session.iso)) + ' copiada');
+  } catch (e) {
+    toast('No se pudo copiar. Permite el acceso al portapapeles y vuelve a intentarlo.');
+  }
+}
+
 function historySessions(sessions, order) {
   const routine = ROUTINE_BY_ID.get(order);
   const visible = routine ? sessions.filter(session => session.routineId === routine.id) : sessions.slice();
@@ -1796,6 +1834,13 @@ function renderHistory() {
         ),
         el('p', { class: 'entry__vol', text: session.volume ? nf0.format(Math.round(session.volume)) + ' kg' : '—' }),
         el('span', { class: 'entry__tools' },
+          el('button', {
+            class: 'iconbtn', type: 'button', dataset: { copySession: session.id },
+            title: 'Copiar rutina'
+          },
+            el('span', { class: 'sr', text: 'Copiar la rutina del ' + dateShort.format(when) }),
+            iconCopy()
+          ),
           el('button', {
             class: 'iconbtn', type: 'button', dataset: { editSession: session.id },
             title: 'Editar sesión'
@@ -3248,6 +3293,8 @@ function bindEvents() {
   });
 
   $('historyList').addEventListener('click', event => {
+    const copy = event.target.closest('[data-copy-session]');
+    if (copy) { copySession(copy.dataset.copySession); return; }
     const edit = event.target.closest('[data-edit-session]');
     if (edit) { editSession(edit.dataset.editSession); return; }
     const button = event.target.closest('[data-delete-session]');

@@ -73,6 +73,10 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   sesión. Las sesiones cerradas se pueden corregir desde el botón del lápiz;
   los abdominales se anotan con series y notas, sin campos de carga ni
   repeticiones. Los registros antiguos conservan sus repeticiones originales.
+  El botón de dos papeles, a la izquierda del lápiz, copia esa sesión al
+  portapapeles como texto para pegarla donde quieras. Todas usan la misma
+  plantilla: fecha y hora, bloque, ejercicios numerados con carga, series y
+  repeticiones disponibles, notas, tonelaje total y sensaciones si las hay.
 - **Sensaciones del entrenamiento**: al terminar se puede escribir una nota
   opcional de hasta 2000 caracteres. Aparece debajo de la cabecera de la sesión
   y antes de los ejercicios en el historial. Se puede corregir con el lápiz y se
