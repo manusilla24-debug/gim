@@ -1,9 +1,9 @@
 # Registro de Fuerza
 
-Registro de entrenamiento de fuerza para un ciclo de cuatro bloques (empuje,
+Registro de entrenamiento de fuerza para cuatro bloques (empuje,
 tracción, hombro y abdomen, y pierna). Se anota la carga, las series y las
-repeticiones de cada ejercicio; al cerrar la sesión pasa al historial y el registro avanza al
-bloque siguiente. El bloque D «Pierna», en rojo, incluye sentadilla libre,
+repeticiones de cada ejercicio; al cerrar la sesión pasa al historial y se abre el bloque recomendado según
+cuánto tiempo lleva sin entrenarse. El bloque D «Pierna», en rojo, incluye sentadilla libre,
 prensa, extensión de gemelos y curl femoral tumbado, en ese orden. El bloque B
 «Espalda y bíceps» termina con curl femoral sentado. Todos usan los campos
 habituales de carga, series, repeticiones y notas.
@@ -26,7 +26,11 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
 
 ## Funciones
 
-- **Inicio personal**: próximo bloque, actividad reciente, mejores
+- **Inicio personal**: recomienda el bloque cuya última sesión es más antigua.
+  Los bloques todavía sin sesiones tienen prioridad; en empates se usa el orden
+  A, B, C y D. Puedes elegir cualquiera y registrar varios el mismo día. La
+  recomendación se recalcula al terminar, eliminar o importar sesiones y al abrir
+  la app; no usa los borradores ni las marcas de Otros. Muestra actividad reciente, mejores
   cargas y un mapa de constancia de las últimas 16 semanas, que marca los días
   entrenados sin sumar kilos. Las letras de los
   días acompañan a cada fila y rotan para que hoy siempre quede abajo.
@@ -209,6 +213,7 @@ Las comprobaciones del entrenador se ejecutan con Node, sin instalar paquetes:
 node tests/coach.test.cjs
 node tests/integrity.test.cjs
 node tests/calendar.test.cjs
+node tests/recommendation.test.cjs
 node tests/offline.test.cjs
 node --check assets/app.js
 node --check assets/coach-knowledge.js

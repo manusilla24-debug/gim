@@ -527,12 +527,25 @@ function lastRecordOf(name, exerciseId, legacyName) {
 
 /* --- Carril: ciclo y resumen -------------------------------------------- */
 
+/* Se prioriza el bloque menos reciente; los no registrados van primero.
+   El orden de SPLIT solo desempata. No intervienen borradores ni días de Otros. */
+function recommendedRoutine(sessions = state.sessions) {
+  const latest = new Map(SPLIT.map(routine => [routine.id, -Infinity]));
+  sessions.forEach(session => {
+    if (!session || !latest.has(session.routineId)) return;
+    const when = Date.parse(session.iso);
+    if (Number.isFinite(when)) latest.set(session.routineId, Math.max(latest.get(session.routineId), when));
+  });
+  return SPLIT.reduce((oldest, routine) => latest.get(routine.id) < latest.get(oldest.id) ? routine : oldest);
+}
+
 function renderSplit() {
   const list = $('splitList');
+  const recommended = recommendedRoutine();
   list.replaceChildren(...SPLIT.map(routine => {
     const isActive = routine.id === state.activeId;
-    // Solo se marca la programada cuando no es la que está abierta.
-    const isNext = routine.id === state.nextId && !isActive;
+    // Solo se marca la recomendada cuando no es la que está abierta.
+    const isNext = routine.id === recommended.id && !isActive;
     return el('li', {},
       el('button', {
         class: 'split__btn',
@@ -546,7 +559,7 @@ function renderSplit() {
           el('span', { class: 'split__focus', text: routine.focus })
         ),
         isNext && state.sessions.length > 0
-          ? el('span', { class: 'split__flag', text: 'Programada' })
+          ? el('span', { class: 'split__flag', text: 'Recomendada' })
           : null
       )
     );
@@ -684,9 +697,9 @@ function coachWelcome() {
   const context = previous
     ? 'La última vez que hiciste este bloque fue ' + relativeDay(previous.iso) + '.'
     : 'Todavía no tienes una sesión anterior de este bloque.';
-  const next = ROUTINE_BY_ID.get(state.nextId);
+  const next = recommendedRoutine();
   $('coachContext').textContent = coachContextLabel();
-  addCoachMessage('Estás viendo ' + routine.code + ': ' + routine.name + '. El siguiente bloque del ciclo es ' + next.code + '.\n' + context
+  addCoachMessage('Estás viendo ' + routine.code + ': ' + routine.name + '. El bloque recomendado es ' + next.code + ': se prioriza el que todavía no has registrado o llevas más tiempo sin entrenar.\n' + context
     + '\nCuéntame qué quieres conseguir o pregúntame por técnica, cargas, descansos, alimentación o tu progreso. Puedo usar tu historial y recordar lo que me cuentes durante esta conversación. ¿Qué necesitas hoy?');
   addCoachFollowups(['Soy principiante', 'Quiero ganar músculo', '¿Cómo voy esta semana?']);
 }
@@ -1026,7 +1039,7 @@ function coachPersonalize(topic, exercise) {
       parts.push('Si eres un adulto sano y quieres ver la cuenta orientativa, dime «peso 80 kg», usando tu peso real. No confundiré la carga de un ejercicio con tu peso corporal.');
     }
   }
-  if (topic.id === 'frequency' && coachConversation.days) parts.push('Me has dicho ' + coachConversation.days + ' días por semana. Puedes recorrer A → B → C → D en ese orden y continuar el ciclo la semana siguiente.');
+  if (topic.id === 'frequency' && coachConversation.days) parts.push('Me has dicho ' + coachConversation.days + ' días por semana. Puedes elegir los bloques en el orden que quieras, incluso varios el mismo día. La app recomienda el que todavía no has registrado o llevas más tiempo sin entrenar.');
   if (topic.id === 'order' && exercise) parts.push('Si ' + exercise.name + ' es tu prioridad, compara sus referencias en una posición parecida dentro de la sesión.');
   if (['load', 'effort'].includes(topic.id) && exercise) {
     const report = coachConversation.reports[exercise.id];
@@ -1323,17 +1336,17 @@ function currentStreak() {
 
 function renderHome() {
   renderWeek();
-  const routine = ROUTINE_BY_ID.get(state.nextId) || ROUTINE_BY_ID.get(state.activeId);
-  const last = state.sessions[0];
+  const routine = recommendedRoutine();
+  const previous = coachSessions().find(session => session.routineId === routine.id);
   const recent = state.sessions.slice(0, 4);
   const best = bestLoads().slice(0, 4);
 
   $('homeEyebrow').textContent = state.sessions.length ? 'Tu próximo entrenamiento' : 'Tu punto de partida';
   $('homeTitle').textContent = 'Bloque ' + routine.code + ' · ' + routine.name;
   $('homeCode').textContent = routine.code;
-  $('homeSub').textContent = last
-    ? 'Última sesión ' + relativeDay(last.iso) + '. Tienes tus referencias listas para continuar.'
-    : 'Tu rutina personal de tres bloques está preparada. Empieza cuando quieras.';
+  $('homeSub').textContent = previous
+    ? 'Es el bloque que llevas más tiempo sin entrenar: última sesión ' + relativeDay(previous.iso) + '. Puedes elegir cualquier otro.'
+    : 'Todavía no has registrado este bloque, por eso tiene prioridad. Puedes elegir cualquier otro.';
 
   const thisMonth = state.sessions.filter(session => {
     const when = new Date(session.iso);
@@ -2579,7 +2592,7 @@ async function completeSession() {
 
   const ok = await confirmAction('Terminar entrenamiento',
     'Se guardan ' + entries.length + (entries.length === 1 ? ' ejercicio' : ' ejercicios')
-    + ' en el historial y el registro pasa al bloque siguiente.',
+    + ' en el historial. Después se abrirá el bloque que todavía no has registrado o llevas más tiempo sin entrenar.',
     'Terminar entrenamiento', true);
   if (!ok) return;
 
@@ -2603,8 +2616,7 @@ async function completeSession() {
   });
 
   delete state.draft[routine.id];
-  const index = SPLIT.findIndex(r => r.id === routine.id);
-  const next = SPLIT[(index + 1) % SPLIT.length];
+  const next = recommendedRoutine();
   state.nextId = next.id;
   state.activeId = next.id;
 
@@ -2613,7 +2625,7 @@ async function completeSession() {
   if (records.length) {
     toast('Nueva mejor marca · ' + records.map(record => record.name + ' ' + kg(num(record.load))).join(' · '), true);
   } else {
-    toast('Entrenamiento terminado · toca el bloque ' + next.code + ': ' + next.name);
+    toast('Entrenamiento terminado · recomendado: bloque ' + next.code + ' · ' + next.name);
   }
 }
 
@@ -3162,7 +3174,7 @@ function bindEvents() {
   });
   $('switchUser').addEventListener('click', leaveUser);
   $('startTraining').addEventListener('click', () => {
-    selectRoutine(state.nextId);
+    selectRoutine(recommendedRoutine().id);
     selectTab('registro', true);
   });
 
