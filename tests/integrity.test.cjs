@@ -60,7 +60,7 @@ vm.runInContext(read('assets/app.js').replace(/boot\(\);\s*$/, ''), context);
     assert.match(copied, /Nota: Pausa abajo/);
     assert.ok(copied.includes('Sensaciones del entrenamiento:'));
     assert.ok(copied.includes('Buenas sensaciones'));
-    assert.ok(copied.includes('Tonelaje total: ' + kg(1800)));
+    assert.doesNotMatch(copied, /Tonelaje|1800 kg/);
     assert.doesNotMatch(copied, /25 kg/);
     assert.equal(JSON.stringify(state), snapshot);
     const abs = session('abs', old.iso, [{ name: 'Abdominales', sets: 4, reps: 0, load: 0 }], 'c');
@@ -124,9 +124,23 @@ vm.runInContext(read('assets/app.js').replace(/boot\(\);\s*$/, ''), context);
       session('r2', recent.iso, [entry('b2', 'Remo de arriba', 40)], 'b'),
       session('r3', recent.iso, [entry('b3', 'Remo en T', 50)], 'b')
     ]);
-    assert.equal(variantRows.length, 3);
+    assert.equal(variantRows.length, 2);
     assert.equal(variantRows[0].values[1], null);
-    assert.equal(variantRows[0].values[2], null);
+    assert.equal(variantRows[0].values[2].load, 50);
+    // Todas las variantes recuperan su referencia desde cualquiera de los huecos.
+    const rowingVariants = ROUTINE_BY_ID.get('b').exercises.find(item => item.id === 'b2').variants;
+    for (const name of rowingVariants) {
+      for (const [savedId, selectedId] of [['b2', 'b3'], ['b3', 'b2']]) {
+        state.sessions = [session('row', recent.iso, [entry(savedId, name, 55)], 'b')];
+        const beforeLookup = JSON.stringify(state);
+        const selected = ROUTINE_BY_ID.get('b').exercises.find(item => item.id === selectedId);
+        assert.equal(lastRecordOf(name, selectedId, selected.legacyName).record.load, 55);
+        assert.equal(coachHistory('b', name, selectedId, selected.legacyName)[0].entry.load, 55);
+        const different = rowingVariants.find(variant => variant !== name);
+        assert.equal(lastRecordOf(different, selectedId, selected.legacyName), null);
+        assert.equal(JSON.stringify(state), beforeLookup);
+      }
+    }
     await importData(file({ sessions: [old] }));
     assert.equal(state.sessions.length, 1);
     assert.deepEqual(Object.keys(state.draft), []);

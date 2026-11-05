@@ -25,12 +25,12 @@ const SPLIT = [
     exercises: [
       { id: 'b1', name: 'Jalón al pecho' },
       {
-        id: 'b2', name: 'Remo', legacyName: 'Remo 1', variantLabel: 'Tipo de remo 1',
+        id: 'b2', name: 'Remo', legacyName: 'Remo 1', variantLabel: 'Tipo de remo 1', historyGroup: 'remos',
         variants: ['Remo en máquina de palanca', 'Remo en polea baja', 'Remo de arriba', 'Remo en T'],
         defaultVariant: 'Remo en máquina de palanca'
       },
       {
-        id: 'b3', name: 'Remo', legacyName: 'Remo 2', variantLabel: 'Tipo de remo 2',
+        id: 'b3', name: 'Remo', legacyName: 'Remo 2', variantLabel: 'Tipo de remo 2', historyGroup: 'remos',
         variants: ['Remo en máquina de palanca', 'Remo en polea baja', 'Remo de arriba', 'Remo en T'],
         defaultVariant: 'Remo en polea baja'
       },
@@ -503,10 +503,22 @@ function selectedExerciseName(exercise, values) {
     : exercise.defaultVariant || exercise.variants[0];
 }
 
+/* Las variantes compartidas siguen al movimiento, no a su hueco en la rutina. */
+function historyGroupOf(name, exerciseId) {
+  const exercise = SPLIT.flatMap(routine => routine.exercises).find(item => item.id === exerciseId);
+  return exercise && exercise.historyGroup && exercise.variants.includes(name) ? exercise.historyGroup : '';
+}
+
+function matchesHistoryEntry(entry, name, exerciseId, legacyName) {
+  const group = historyGroupOf(name, exerciseId);
+  if (group) return entry.name === name && (!entry.exerciseId || historyGroupOf(entry.name, entry.exerciseId) === group);
+  return (entry.exerciseId === exerciseId && (!legacyName || entry.name === name))
+    || (!entry.exerciseId && (entry.name === name || entry.name === legacyName));
+}
+
 function lastRecordOf(name, exerciseId, legacyName) {
   for (const session of state.sessions) {
-    const hit = session.entries.find(e => ((e.exerciseId === exerciseId && (!legacyName || e.name === name))
-      || (!e.exerciseId && (e.name === name || e.name === legacyName)))
+    const hit = session.entries.find(e => matchesHistoryEntry(e, name, exerciseId, legacyName)
       && (num(e.load) > 0 || num(e.reps) > 0 || num(e.sets) > 0));
     if (hit) return { record: hit, iso: session.iso };
   }
@@ -555,8 +567,8 @@ function coachHistory(routineId, exerciseName, exerciseId, legacyName) {
   const rows = [];
   for (const session of coachSessions()) {
     if (session.routineId !== routineId) continue;
-    const entry = session.entries.find(item => item && ((item.exerciseId === exerciseId && (!legacyName || item.name === exerciseName))
-      || (!item.exerciseId && (item.name === exerciseName || item.name === legacyName))));
+    const entry = session.entries.find(item => item && matchesHistoryEntry(item, exerciseName, exerciseId, legacyName)
+      && [item.load, item.sets, item.reps].some(value => num(value) > 0));
     if (entry && [entry.load, entry.sets, entry.reps].some(value => num(value) > 0)) rows.push({ entry, iso: session.iso });
   }
   return rows;
@@ -776,10 +788,9 @@ function showCoachSummary(days = 7) {
   const start = new Date(now.getFullYear(), now.getMonth(), calendarMonth ? 1 : now.getDate() - days + 1);
   const recent = coachSessions().filter(session => new Date(session.iso) >= start && new Date(session.iso) <= now);
   const counts = SPLIT.map(routine => routine.code + ': ' + recent.filter(session => session.routineId === routine.id).length);
-  const volume = recent.reduce((sum, session) => sum + volumeOf(session.entries.filter(entry => entry && typeof entry === 'object')), 0);
   const period = calendarMonth ? 'Este mes, desde el ' + dateShort.format(start) : 'Últimos ' + days + ' días, incluido hoy';
   addCoachMessage(period + ' · ' + recent.length + (recent.length === 1 ? ' sesión finalizada.\n' : ' sesiones finalizadas.\n')
-    + counts.join(' · ') + '\nTonelaje registrado: ' + kg(volume) + ' (carga × series × repeticiones). No incluye trabajo sin carga registrada ni el borrador.\n'
+    + counts.join(' · ') + '\n'
     + (recent.length ? 'La distribución describe tus registros; no permite valorar por sí sola tu recuperación o la calidad del entrenamiento.' : 'No hay sesiones finalizadas en este periodo. Puedes consultar tus referencias anteriores por ejercicio.'));
 }
 
@@ -793,7 +804,7 @@ function showCoachLastSession(routineId = state.activeId) {
   const entries = session.entries.filter(entry => entry && typeof entry === 'object');
   addCoachMessage('Última sesión del bloque ' + ROUTINE_BY_ID.get(routineId).code + ' · ' + dateShort.format(new Date(session.iso)) + '\n'
     + entries.map(entry => '• ' + String(entry.name || 'Ejercicio') + ': ' + coachValues(entry) + (entry.note ? '\n  Nota: ' + entry.note : '')).join('\n')
-    + '\nTonelaje registrado: ' + kg(volumeOf(entries)) + '. Puedes consultar un ejercicio para comparar sus referencias.');
+    + '\nPuedes consultar un ejercicio para comparar sus referencias.');
 }
 
 function showCoachDraft() {
@@ -981,11 +992,10 @@ function coachReportedEffort(exerciseId) {
   return Object.hasOwn(numbers, value) ? numbers[value] : Number(value);
 }
 
-function showCoachCalculation(values, exercise) {
+function showCoachPerformance(values, exercise) {
   coachConversation.awaiting = exercise ? 'effort' : '';
-  const volume = values.load * values.sets * values.reps;
-  coachRespond((exercise ? exercise.name + '\n' : '') + 'Con las cifras que has escrito: ' + kg(values.load) + ' × ' + values.sets + ' series × ' + values.reps + ' repeticiones = ' + kg(volume) + ' de tonelaje.\n'
-    + 'He interpretado series × repeticiones; si querías decir otra cosa, corrígeme. Es una cuenta, no una medida de calidad, esfuerzo o calorías. No he guardado esas cifras como entrenamiento.\n'
+  coachRespond((exercise ? exercise.name + '\n' : '') + 'Has indicado ' + values.sets + ' series de ' + values.reps + ' repeticiones con ' + kg(values.load) + '.\n'
+    + 'He interpretado series × repeticiones; si querías decir otra cosa, corrígeme. No he guardado esas cifras como entrenamiento.\n'
     + 'Para valorar si conviene cambiar la referencia, dime si completaste el recorrido con control y cuántas repeticiones crees que te quedaban.', ['¿Qué es el RIR?', '¿Cómo registro el esfuerzo?']);
 }
 
@@ -1066,9 +1076,9 @@ function coachChooseExercise(exercise, question = '') {
   coachConversation.focus = { id: exercise.id, routineId: exercise.routineId || state.activeId };
   coachConversation.pending = null;
   const performance = coachPerformance(question);
-  if (performance && /tonelaje|volumen|calcula|he hecho|he completado|hice/.test(normalizeCoachText(question))) {
+  if (performance && /calcula|he hecho|he completado|hice/.test(normalizeCoachText(question))) {
     coachConversation.reports[exercise.id] = question;
-    showCoachCalculation(performance, exercise);
+    showCoachPerformance(performance, exercise);
     return;
   }
   const topics = coachTopicMatches(normalizeCoachText(question));
@@ -1138,8 +1148,8 @@ function answerCoach(raw) {
   }
   if (/\b(?:que toca|bloque actual|siguiente bloque)\b/.test(intent)) { coachWelcome(); return; }
   const performance = coachPerformance(text);
-  if (performance && /\b(?:tonelaje|volumen|calcula|he hecho|he completado|hice)\b/.test(intent)) {
-    showCoachCalculation(performance, focus);
+  if (performance && /\b(?:calcula|he hecho|he completado|hice)\b/.test(intent)) {
+    showCoachPerformance(performance, focus);
     return;
   }
   // Preguntas específicas antes de órdenes genéricas que contengan «sesión».
@@ -1162,7 +1172,7 @@ function answerCoach(raw) {
     showCoachLastSession(matches.length === 1 ? matches[0].routineId : state.activeId);
     return;
   }
-  if (/\b(?:resumen|balance|tonelaje|volumen|esta semana|este mes)\b/.test(intent)) {
+  if (/\b(?:resumen|balance|esta semana|este mes)\b/.test(intent)) {
     showCoachSummary(/este mes/.test(intent) ? 'month' : /mes|mensual|30 dias/.test(intent) ? 30 : 7);
     return;
   }
@@ -1345,8 +1355,7 @@ function renderHome() {
     ? el('ol', { class: 'home-list' }, recent.map(session => el('li', { class: 'home-list__item' },
         el('span', { class: 'home-list__code home-list__code--' + session.routineId, text: session.code }),
         el('span', { class: 'home-list__main' }, session.name,
-          el('small', { text: dateShort.format(new Date(session.iso)) + ' · ' + session.entries.length + ' ejercicios' })),
-        el('strong', { text: session.volume ? nf0.format(Math.round(session.volume)) + ' kg' : '—' })
+          el('small', { text: dateShort.format(new Date(session.iso)) + ' · ' + session.entries.length + ' ejercicios' }))
       )))
     : el('div', { class: 'empty empty--compact' },
         el('p', { class: 'empty__title', text: 'Aún no hay referencias' }),
@@ -1371,17 +1380,15 @@ let activityTimer = null;
 
 function renderActivity() {
   const host = $('activityHeatmap');
-  const byDay = new Map();
+  const trainedDays = new Set();
   state.sessions.forEach(session => {
     const key = dateKey(new Date(session.iso));
-    byDay.set(key, (byDay.get(key) || 0) + (num(session.volume) || 1));
+    trainedDays.add(key);
   });
   const end = new Date();
   end.setHours(12, 0, 0, 0);
   const start = new Date(end);
   start.setDate(start.getDate() - 111);
-  const values = [...byDay.values()].filter(Boolean);
-  const max = Math.max(...values, 1);
   const weekdays = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
   const cells = Array.from({ length: 7 }, (_, index) => el('span', {
     class: 'activity__day',
@@ -1392,12 +1399,11 @@ function renderActivity() {
   for (let index = 0; index < 112; index += 1) {
     const day = new Date(start);
     day.setDate(start.getDate() + index);
-    const value = byDay.get(dateKey(day)) || 0;
-    if (value) trained += 1;
-    const level = value ? Math.max(1, Math.ceil((value / max) * 4)) : 0;
+    const active = trainedDays.has(dateKey(day));
+    if (active) trained += 1;
     cells.push(el('span', {
-      class: 'activity__cell activity__cell--' + level,
-      title: dayLong.format(day) + (value ? ' · ' + nf0.format(Math.round(value)) + ' kg' : ' · descanso'),
+      class: 'activity__cell' + (active ? ' activity__cell--active' : ''),
+      title: dayLong.format(day) + (active ? ' · entrenado' : ' · descanso'),
       'aria-hidden': 'true'
     }));
   }
@@ -1624,8 +1630,13 @@ function renderLog() {
     const setsOnly = exercise.tracksSetsOnly === true;
     const exerciseName = selectedExerciseName(exercise, values);
     const previous = lastRecordOf(exerciseName, exercise.id, exercise.legacyName);
-    const plan = buildCoachPlan().rows.find(row => row.id === exercise.id);
     const inputId = suffix => 'f-' + routineId + '-' + exercise.id + '-' + suffix;
+    const previousHint = previous
+      ? el('span', { class: 'ex__last ex__last--record' },
+          'Última: ',
+          el('b', { text: previousLabel(previous.record, tracksLoad, setsOnly) }),
+          ' · ' + relativeDay(previous.iso))
+      : el('span', { class: 'ex__last', text: 'Sin registro previo' });
 
     const nameBlock = exercise.custom
       ? el('div', { class: 'ex__name' },
@@ -1633,7 +1644,8 @@ function renderLog() {
             class: 'ex__nameinput', type: 'text', value: exercise.name,
             placeholder: 'Nombre del ejercicio', 'aria-label': 'Nombre del ejercicio',
             dataset: { field: 'name' }
-          })
+          }),
+          previousHint
         )
       : el('div', { class: 'ex__name' },
           el('span', { class: 'ex__title', text: exercise.name }),
@@ -1649,16 +1661,7 @@ function renderLog() {
               selected: variant === exerciseName ? true : null
             })))
           ) : null,
-          previous
-            ? el('span', { class: 'ex__last' },
-                'Última: ',
-                el('b', { text: previousLabel(previous.record, tracksLoad, setsOnly) }),
-                ' · ' + relativeDay(previous.iso))
-            : el('span', { class: 'ex__last', text: 'Sin registro previo' }),
-          plan ? el('span', { class: 'ex__target' },
-            el('span', { text: 'Objetivo' }),
-            el('b', { text: previousLabel(plan.values, tracksLoad, setsOnly) })
-          ) : null
+          previousHint
         );
 
     const loadField = tracksLoad
@@ -1778,7 +1781,6 @@ function sessionCopyText(session) {
     if (entry.note) lines.push('   Nota: ' + entry.note);
   });
   if (!session.entries.length) lines.push('Sin ejercicios registrados.');
-  lines.push('', 'Tonelaje total: ' + kg(Math.round(num(session.volume))));
   if (session.note) lines.push('', 'Sensaciones del entrenamiento:', session.note);
   return lines.join('\n');
 }
@@ -1818,7 +1820,7 @@ function renderHistory() {
       el('p', { class: 'empty__title', text: routine ? 'Todavía no hay sesiones del bloque ' + routine.code : 'Todavía no hay sesiones' }),
       el('p', { text: routine
         ? 'Elige otro bloque o una opción de fecha para ver el resto del historial.'
-        : 'Rellena la sesión de hoy y ciérrala: quedará aquí con la carga, las series y el tonelaje de cada ejercicio.' })
+        : 'Rellena la sesión de hoy y ciérrala: quedará aquí con la carga, las series y las repeticiones de cada ejercicio.' })
     ));
     return;
   }
@@ -1832,7 +1834,6 @@ function renderHistory() {
           session.name,
           el('span', { class: 'entry__date', text: dateShort.format(when) + ' · ' + timeShort.format(when) })
         ),
-        el('p', { class: 'entry__vol', text: session.volume ? nf0.format(Math.round(session.volume)) + ' kg' : '—' }),
         el('span', { class: 'entry__tools' },
           el('button', {
             class: 'iconbtn', type: 'button', dataset: { copySession: session.id },
@@ -2265,7 +2266,7 @@ function syncComparisonFilters() {
 
 function comparisonData(sessions) {
   // Un ejercicio omitido no desplaza las cargas de los demás. Las variantes
-  // y los dos huecos de remo conservan referencias independientes.
+  // conservan referencias independientes; los remos se unen por variante.
   const idsByName = new Map();
   sessions.forEach(session => session.entries.forEach(entry => {
     if (!entry.exerciseId) return;
@@ -2278,7 +2279,7 @@ function comparisonData(sessions) {
       || item.legacyName === entry.name || (item.variants || []).includes(entry.name));
     const ids = idsByName.get(entry.name);
     const id = entry.exerciseId || (exercise && exercise.id) || (ids && ids.size === 1 ? [...ids][0] : '');
-    return JSON.stringify([id, entry.name]);
+    return JSON.stringify([historyGroupOf(entry.name, id) || id, entry.name]);
   };
   const references = new Map();
   const entriesBySession = sessions.map(session => {

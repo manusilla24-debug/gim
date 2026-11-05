@@ -60,6 +60,11 @@ assert.equal(buildCoachPlan().rows.find(row => row.id === 'b2').values.load, '')
 state.draft.b = { b2: { variant: 'Remo en T' } };
 assert.equal(buildCoachPlan().rows.find(row => row.id === 'b2').values.load, '40');
 assert.equal(buildCoachPlan().rows.find(row => row.id === 'b3').values.load, '');
+state.draft.b.b3 = { variant: 'Remo en T' };
+assert.equal(buildCoachPlan().rows.find(row => row.id === 'b3').values.load, '40');
+state.sessions = [session('2026-10-04', [entry('b3', 'Remo en T', '45')], 'b'), ...state.sessions];
+assert.equal(buildCoachPlan().rows.find(row => row.id === 'b2').values.load, '45');
+assert.equal(buildCoachPlan().rows.find(row => row.id === 'b3').values.load, '45');
 
 // Prioridad de intenciones y contexto: dolor nunca genera un plan.
 reset();
@@ -139,11 +144,12 @@ assert.equal(coachConversation.minutes, 25);
 answerCoach('Descanso 2 minutos entre series');
 assert.equal(coachConversation.minutes, 25);
 
-// Peso corporal explícito separado de la carga y cálculo con decimales españoles.
+// Peso corporal explícito separado de la carga y series con decimales españoles.
 answerCoach('En el remo he hecho 3x10 con 20,5 kg');
-// «remo» pide aclaración; tras elegir se conserva la intención de cálculo.
+// «remo» pide aclaración; tras elegir se conservan las series descritas.
 answerCoach('He hecho 3x10 con 20,5 kg');
-assert.match(messages.at(-1), /615 kg/);
+assert.match(messages.at(-1), /3 series de 10 repeticiones con 20,5 kg/);
+assert.doesNotMatch(messages.at(-1), /615 kg|tonelaje/i);
 answerCoach('dos');
 assert.equal(coachReportedEffort('b3'), 2);
 assert.match(messages.at(-1), /RIR 2/);

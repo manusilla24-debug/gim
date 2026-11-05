@@ -27,7 +27,8 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
 ## Funciones
 
 - **Inicio personal**: próximo bloque, actividad reciente, mejores
-  cargas y un mapa de constancia de las últimas 16 semanas. Las letras de los
+  cargas y un mapa de constancia de las últimas 16 semanas, que marca los días
+  entrenados sin sumar kilos. Las letras de los
   días acompañan a cada fila y rotan para que hoy siempre quede abajo.
   Encima de «Tu referencia» hay un calendario semanal de lunes a domingo:
   permite avanzar o retroceder con flechas o deslizando sobre los días, seleccionar
@@ -35,14 +36,18 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   los días entrenados con el color del bloque (dividido en segmentos si hay varios)
   y «Volver a hoy» recupera la fecha actual. Solo muestra
   sesiones guardadas del atleta activo; no genera entrenamientos previstos.
-- **Ayuda durante la sesión**: cada ejercicio muestra la última referencia y
-  un objetivo conservador; una nueva mejor carga recibe un aviso especial.
+- **Ayuda durante la sesión**: cada ejercicio muestra la última referencia en
+  una pastilla con el color del bloque, sin etiqueta de objetivo. Una nueva mejor
+  carga recibe un aviso especial.
 - **Cargas decimales**: los campos aceptan tanto coma como punto en móvil
   (`42,5` y `42.5` se guardan como la misma carga).
 - **Variantes de ejercicio**: los dos huecos de remo permiten elegir entre
   máquina de palanca, polea baja, remo de arriba y remo en T; la extensión de
   hombro permite seleccionar ejecución bilateral o unilateral. Cada variante
   conserva su propia serie dentro del bloque correspondiente en Progresión. Al
+  elegir un remo, la última referencia, el entrenador y la comparación de
+  sesiones siguen esa variante aunque cambies entre el primer y el segundo
+  hueco. Los pesos de variantes distintas se mantienen separados. Al
   cargar historiales anteriores, las sesiones personales de septiembre de 2026
   se reclasifican automáticamente para eliminar los nombres genéricos.
 
@@ -63,20 +68,20 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   nativo del dispositivo. Permite marcar o desmarcar una fecha pasada o actual
   en morado, sin nombres, notas ni entradas en el historial. Solo se guarda la
   fecha por atleta, también en las copias JSON. No cuenta como sesión ni cambia
-  el ciclo, el ritmo, el tonelaje o las estadísticas. Los calendarios mensual y
+  el ciclo, el ritmo o las estadísticas. Los calendarios mensual y
   semanal dividen el círculo en segmentos iguales por bloque y Otros: gimnasio
   y Otros usan dos mitades; varios bloques usan sus respectivos colores.
   Tocar un día entrenado abre sus sesiones en el historial, restablece el orden
   por fecha y las enmarca durante cinco segundos con el color actual de la
   interfaz. Si hay varias sesiones ese día, se resaltan todas.
-- **Historial** completo con el tonelaje (carga × series × repeticiones) de cada
+- **Historial** completo con las cargas, series, repeticiones y notas de cada
   sesión. Las sesiones cerradas se pueden corregir desde el botón del lápiz;
   los abdominales se anotan con series y notas, sin campos de carga ni
   repeticiones. Los registros antiguos conservan sus repeticiones originales.
   El botón de dos papeles, a la izquierda del lápiz, copia esa sesión al
   portapapeles como texto para pegarla donde quieras. Todas usan la misma
   plantilla: fecha y hora, bloque, ejercicios numerados con carga, series y
-  repeticiones disponibles, notas, tonelaje total y sensaciones si las hay.
+  repeticiones disponibles, notas y sensaciones si las hay.
 - **Sensaciones del entrenamiento**: al terminar se puede escribir una nota
   opcional de hasta 2000 caracteres. Aparece debajo de la cabecera de la sesión
   y antes de los ejercicios en el historial. Se puede corregir con el lápiz y se
@@ -95,7 +100,7 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
 - **Copiar la última sesión** del bloque para partir de lo que ya se hizo.
 - **Entrenador local**: consulta ejercicios por nombre, compara sus tres últimas
   referencias con fechas y notas, recupera la última sesión del bloque, resume
-  las sesiones y el tonelaje de los últimos siete o treinta días, o del mes actual, y revisa los
+  las sesiones de los últimos siete o treinta días, o del mes actual, y revisa los
   campos pendientes del borrador. Las coincidencias
   ambiguas ofrecen botones para elegir (por ejemplo, los dos remos). Conserva el
   ejercicio de la conversación para consultas como «¿Y la carga?».
@@ -107,7 +112,7 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   corporal que indiques explícitamente. Si describes fatiga o poco margen de
   esfuerzo, no añade repeticiones a la propuesta de progresión. Distingue lo que
   le cuentas de las sesiones guardadas. «He hecho 3×10 con 20,5 kg» permite
-  calcular 615 kg de tonelaje sin añadir una sesión. Las opciones para continuar
+  comentar esas series y su esfuerzo sin añadir una sesión. Las opciones para continuar
   y las aclaraciones conservan la pregunta original. Puedes pedir respuestas
   más breves o con más detalle y reiniciar el chat con el botón de su cabecera.
   Prepara propuestas explicadas por ejercicio: repetir referencias, probar una
