@@ -58,8 +58,9 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
 - **Varios atletas**: al abrir se elige quién entrena. Cada uno tiene su propio
   ciclo, borrador e historial. Se pueden añadir, renombrar y eliminar.
 - **Progresión** por ejercicio: carga máxima de cada sesión, con mejor marca,
-  última carga y variación. El gráfico tiene su tabla equivalente. Debajo se
-  pueden comparar hasta tres sesiones de un mismo bloque, ejercicio a ejercicio,
+  última carga y variación. «Ver tabla» muestra la fecha, el bloque, la carga y
+  las notas del ejercicio seleccionado en cada sesión. Debajo se pueden
+  comparar hasta tres sesiones de un mismo bloque, ejercicio a ejercicio,
   mediante tres líneas de carga y una tabla con cargas, series y repeticiones.
 - **Color por bloque**: pecho y tríceps usa naranja, espalda y bíceps azul,
   hombro y abdomen verde, y pierna rojo mientras se registra cada entrenamiento.

@@ -1959,6 +1959,7 @@ function seriesFor(name, limit) {
         value: num(hit.load),
         sets: num(hit.sets),
         reps: num(hit.reps),
+        note: typeof hit.note === 'string' ? hit.note.trim() : '',
         code: session.code
       });
     }
@@ -2043,13 +2044,13 @@ function renderChartTable(rows, name) {
       el('th', { scope: 'col', text: 'Fecha' }),
       el('th', { scope: 'col', text: 'Bloque' }),
       el('th', { scope: 'col', text: 'Carga (kg)' }),
-      el('th', { scope: 'col', text: 'Series × reps' })
+      el('th', { scope: 'col', class: 'chart-table__note', text: 'Notas' })
     )),
     el('tbody', {}, rows.slice().reverse().map(row => el('tr', {},
       el('td', { text: dateShort.format(new Date(row.iso)) }),
       el('td', { text: row.code }),
       el('td', { text: nf1.format(row.value) }),
-      el('td', { text: row.sets > 0 && row.reps > 0 ? row.sets + '×' + row.reps : '—' })
+      el('td', { class: 'chart-table__note', text: row.note || 'Sin notas' })
     )))
   ));
 }
