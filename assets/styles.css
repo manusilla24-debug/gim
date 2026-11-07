@@ -1207,7 +1207,13 @@ caption {
 }
 th, td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); }
 th:first-child, td:first-child { text-align: left; }
-.chart-table__note { text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chart-table__note {
+  padding-inline-start: 16px;
+  border-inline-start: 1px solid var(--line);
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 thead th {
   font-family: var(--font-display);
   font-weight: 600;
