@@ -27,6 +27,7 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
 ## Funciones
 
 - **Inicio personal**: recomienda el bloque cuya última sesión es más antigua.
+  En móvil, el emoji acompaña al texto que presenta la recomendación.
   Los bloques todavía sin sesiones tienen prioridad; en empates se usa el orden
   A, B, C y D. Puedes elegir cualquiera y registrar varios el mismo día. La
   recomendación se recalcula al terminar, eliminar o importar sesiones y al abrir
