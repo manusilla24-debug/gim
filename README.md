@@ -62,6 +62,8 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   las notas del ejercicio seleccionado en cada sesión. Debajo se pueden
   comparar hasta tres sesiones de un mismo bloque, ejercicio a ejercicio,
   mediante tres líneas de carga y una tabla con cargas, series y repeticiones.
+- **Selector de bloques en móvil**: cada bloque muestra la letra a la izquierda
+  y el nombre y el enfoque del día a su derecha.
 - **Color por bloque**: pecho y tríceps usa naranja, espalda y bíceps azul,
   hombro y abdomen verde, y pierna rojo mientras se registra cada entrenamiento.
 - **Calendario**: muestra los días entrenados con un círculo del color del bloque

@@ -760,8 +760,8 @@ body {
 }
 
 @media (max-width: 620px) {
-  .split__btn { grid-template-columns: minmax(0, 1fr); gap: 7px; padding: 10px; }
-  .split__code { width: 26px; font-size: 13px; line-height: 22px; }
+  .split__btn { grid-template-columns: 26px minmax(0, 1fr); gap: 7px; padding: 10px; }
+  .split__code { font-size: 13px; line-height: 22px; }
   .split__name { font-size: 13px; }
 }
 @media (max-width: 520px) {
