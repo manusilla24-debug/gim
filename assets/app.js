@@ -66,6 +66,7 @@ const SPLIT = [
 ];
 
 const ROUTINE_BY_ID = new Map(SPLIT.map(r => [r.id, r]));
+const FONDOS = ROUTINE_BY_ID.get('a').exercises.find(exercise => exercise.id === 'a5');
 
 /* --- Estado -------------------------------------------------------------
    Un registro por atleta. El almacén guarda la lista de atletas y, para cada
@@ -1721,7 +1722,8 @@ function renderLog() {
         el('label', { class: 'field__label', for: inputId('note'), text: setsOnly ? 'Notas' : 'Nota' }),
         el('input', {
           id: inputId('note'), type: 'text', value: values.note,
-          placeholder: 'Sensaciones, ajustes…', dataset: { field: 'note' }
+          placeholder: exercise.id === FONDOS.id ? 'Reps por serie, p. ej. 10 10 10' : 'Sensaciones, ajustes…',
+          dataset: { field: 'note' }
         })
       ),
       el('span', { class: 'ex__tools' },
@@ -1894,12 +1896,47 @@ function renderHistory() {
 
 /* --- Progresión: filtros, serie y fichas -------------------------------- */
 
-/* Nombres que aparecen en el historial con carga registrada. */
+const PROGRESS_LOAD = {
+  label: 'Carga máxima', description: 'Carga máxima por sesión, en kilogramos',
+  unit: 'kg', column: 'Carga (kg)', best: 'Mejor carga'
+};
+const PROGRESS_REPS = {
+  label: 'Media de repeticiones por serie', description: 'Media de repeticiones por serie, a partir de las notas',
+  unit: 'reps/serie', column: 'Media (reps/serie)', best: 'Mejor media'
+};
+
+const progressMetric = name => name === FONDOS.name ? PROGRESS_REPS : PROGRESS_LOAD;
+
+function isFondosEntry(entry) {
+  return entry.name === FONDOS.name && (!entry.exerciseId || entry.exerciseId === FONDOS.id);
+}
+
+function averageFondosReps(entry) {
+  const sets = num(entry.sets);
+  if (!Number.isSafeInteger(sets) || sets < 1 || typeof entry.note !== 'string') return null;
+  const parts = entry.note.trim().split(/[\s,;/]+/);
+  if (parts.length !== sets || !parts.every(part => /^\d+$/.test(part) && Number.isSafeInteger(Number(part)))) return null;
+  return parts.reduce((sum, part) => sum + Number(part), 0) / sets;
+}
+
+function progressValue(entry) {
+  if (entry.name === FONDOS.name) return isFondosEntry(entry) ? averageFondosReps(entry) : null;
+  const load = num(entry.load);
+  return load > 0 ? load : null;
+}
+
+function progressScheme(row, metric) {
+  if (!(row.sets > 0)) return '';
+  if (metric === PROGRESS_REPS) return row.sets + (row.sets === 1 ? ' serie' : ' series');
+  return row.reps > 0 ? row.sets + '×' + row.reps : '';
+}
+
+/* Nombres que aparecen en el historial con un valor de progresión. */
 function trackedNames() {
   const seen = new Map();
   for (const session of state.sessions) {
     for (const entry of session.entries) {
-      if (num(entry.load) > 0) seen.set(entry.name, (seen.get(entry.name) || 0) + 1);
+      if (progressValue(entry) !== null) seen.set(entry.name, (seen.get(entry.name) || 0) + 1);
     }
   }
   return seen;
@@ -1911,7 +1948,7 @@ function renderExerciseFilter() {
   const placed = new Set();
   const groups = SPLIT.map(routine => {
     const names = [];
-    exercisesOf(routine.id).filter(ex => ex.tracksLoad !== false).forEach(exercise => {
+    exercisesOf(routine.id).filter(ex => ex.tracksLoad !== false || ex.id === FONDOS.id).forEach(exercise => {
       (exercise.variants || [exercise.name]).forEach(name => {
         if (!names.includes(name)) names.push(name);
       });
@@ -1952,16 +1989,19 @@ function renderExerciseFilter() {
 function seriesFor(name, limit) {
   const rows = [];
   for (const session of state.sessions) {
-    const hit = session.entries.find(e => e.name === name && num(e.load) > 0);
-    if (hit) {
+    for (const entry of session.entries) {
+      if (entry.name !== name) continue;
+      const value = progressValue(entry);
+      if (value === null) continue;
       rows.push({
         iso: session.iso,
-        value: num(hit.load),
-        sets: num(hit.sets),
-        reps: num(hit.reps),
-        note: typeof hit.note === 'string' ? hit.note.trim() : '',
+        value,
+        sets: num(entry.sets),
+        reps: num(entry.reps),
+        note: typeof entry.note === 'string' ? entry.note.trim() : '',
         code: session.code
       });
+      break;
     }
   }
   rows.reverse();
@@ -1973,10 +2013,11 @@ function renderProgress() {
   const limit = Number($('rangeFilter').value) || 0;
   const name = chartExercise;
   const rows = name ? seriesFor(name, limit) : [];
+  const metric = progressMetric(name);
 
   $('chartTitle').textContent = name || 'Carga máxima';
   $('chartSub').textContent = name
-    ? 'Carga máxima por sesión, en kilogramos' + (limit ? ' · últimas ' + limit + ' sesiones con registro' : ' · historial completo')
+    ? metric.description + (limit ? ' · últimas ' + limit + ' sesiones con registro' : ' · historial completo')
     : 'Kilogramos por sesión';
 
   const toggle = $('toggleTable');
@@ -1989,12 +2030,12 @@ function renderProgress() {
   }
 
   drawChart(rows, name);
-  renderChartTable(rows, name);
-  renderTiles(rows, name);
+  renderChartTable(rows, name, metric);
+  renderTiles(rows, name, metric);
   renderComparison();
 }
 
-function renderTiles(rows, name) {
+function renderTiles(rows, name, metric) {
   const host = $('progressTiles');
   if (!rows.length) { host.replaceChildren(); host.hidden = true; return; }
   host.hidden = false;
@@ -2016,9 +2057,8 @@ function renderTiles(rows, name) {
   );
 
   host.replaceChildren(
-    tile('Mejor carga', nf1.format(best.value), 'kg', 'Bloque ' + best.code + ' · ' + dateShort.format(new Date(best.iso))),
-    tile('Última', nf1.format(last.value), 'kg',
-      (last.sets > 0 && last.reps > 0 ? last.sets + '×' + last.reps + ' · ' : '') + relativeDay(last.iso)),
+    tile(metric.best, nf1.format(best.value), metric.unit, 'Bloque ' + best.code + ' · ' + dateShort.format(new Date(best.iso))),
+    tile('Última', nf1.format(last.value), metric.unit, [progressScheme(last, metric), relativeDay(last.iso)].filter(Boolean).join(' · ')),
     el('div', { class: 'tile' },
       el('dt', { class: 'tile__label', text: 'Variación' }),
       el('dd', {},
@@ -2026,7 +2066,7 @@ function renderTiles(rows, name) {
           el('span', { class: 'delta delta--' + direction },
             el('span', { 'aria-hidden': 'true', text: arrow }),
             (delta > 0 ? '+' : '') + nf1.format(delta),
-            el('small', { text: ' kg' })
+            el('small', { text: ' ' + metric.unit })
           )
         ),
         el('span', { class: 'tile__note', text: word + ' · ' + rows.length + (rows.length === 1 ? ' registro' : ' registros') + ' de ' + name })
@@ -2035,15 +2075,15 @@ function renderTiles(rows, name) {
   );
 }
 
-function renderChartTable(rows, name) {
+function renderChartTable(rows, name, metric) {
   const host = $('chartTable');
   if (!rows.length) { host.replaceChildren(); return; }
   host.replaceChildren(el('table', {},
-    el('caption', { text: 'Carga máxima por sesión · ' + name }),
+    el('caption', { text: metric.label + ' por sesión · ' + name }),
     el('thead', {}, el('tr', {},
       el('th', { scope: 'col', text: 'Fecha' }),
       el('th', { scope: 'col', text: 'Bloque' }),
-      el('th', { scope: 'col', text: 'Carga (kg)' }),
+      el('th', { scope: 'col', text: metric.column }),
       el('th', { scope: 'col', class: 'chart-table__note', text: 'Notas' })
     )),
     el('tbody', {}, rows.slice().reverse().map(row => el('tr', {},
@@ -2086,18 +2126,20 @@ function drawChart(rows, name) {
 function paintChart() {
   const host = $('chart');
   const rows = chartRows;
+  const metric = progressMetric(chartName);
 
   if (!rows.length) {
     host.replaceChildren(el('div', { class: 'empty' },
-      el('p', { class: 'empty__title', text: 'Sin cargas registradas' }),
-      el('p', { text: 'La curva necesita al menos una sesión cerrada con carga en este ejercicio. Cierra la sesión de hoy y vuelve aquí.' })
+      el('p', { class: 'empty__title', text: 'Sin datos de progresión' }),
+      el('p', { text: 'Cierra una sesión con una carga registrada o con las repeticiones por serie de Fondos anotadas en Notas.' })
     ));
     return;
   }
 
   const width = Math.max(320, host.clientWidth || 640);
   const height = CHART.height;
-  const plotW = width - CHART.left - CHART.right;
+  const right = metric === PROGRESS_REPS ? 94 : CHART.right;
+  const plotW = width - CHART.left - right;
   const plotH = height - CHART.top - CHART.bottom;
 
   const values = rows.map(r => r.value);
@@ -2116,7 +2158,7 @@ function paintChart() {
 
   // Retícula y escala vertical
   for (const tick of scale.ticks) {
-    frame.append(svg('line', { class: 'grid', x1: CHART.left, x2: width - CHART.right, y1: y(tick), y2: y(tick) }));
+    frame.append(svg('line', { class: 'grid', x1: CHART.left, x2: width - right, y1: y(tick), y2: y(tick) }));
     frame.append(svg('text', {
       class: 'axis-label', x: CHART.left - 10, y: y(tick) + 4, 'text-anchor': 'end',
       text: nf1.format(tick)
@@ -2152,7 +2194,7 @@ function paintChart() {
   const maxIndex = values.indexOf(Math.max(...values));
   frame.append(svg('text', {
     class: 'value-label', x: x(lastIndex) + 10, y: y(rows[lastIndex].value) + 4, 'text-anchor': 'start',
-    text: nf1.format(rows[lastIndex].value) + ' kg'
+    text: nf1.format(rows[lastIndex].value) + ' ' + metric.unit
   }));
   // El máximo solo se rotula si aporta algo: ni repetido ni pegado al último.
   if (maxIndex !== lastIndex
@@ -2160,7 +2202,7 @@ function paintChart() {
       && Math.abs(x(maxIndex) - x(lastIndex)) > 56) {
     frame.append(svg('text', {
       class: 'value-label', x: x(maxIndex), y: y(rows[maxIndex].value) - 12, 'text-anchor': 'middle',
-      text: nf1.format(rows[maxIndex].value) + ' kg'
+      text: nf1.format(rows[maxIndex].value) + ' ' + metric.unit
     }));
   }
 
@@ -2190,8 +2232,8 @@ function paintChart() {
     marker.setAttribute('opacity', '1');
 
     tip.replaceChildren(
-      el('p', { class: 'chart__tip-value' }, nf1.format(row.value), el('span', { text: ' kg' })),
-      el('p', { class: 'chart__tip-date', text: dateShort.format(new Date(row.iso)) + (row.sets > 0 && row.reps > 0 ? ' · ' + row.sets + '×' + row.reps : '') }),
+      el('p', { class: 'chart__tip-value' }, nf1.format(row.value), el('span', { text: ' ' + metric.unit })),
+      el('p', { class: 'chart__tip-date', text: [dateShort.format(new Date(row.iso)), progressScheme(row, metric)].filter(Boolean).join(' · ') }),
       el('p', { class: 'chart__tip-series' }, el('span', { class: 'chart__tip-key' }), chartName)
     );
     tip.hidden = false;
@@ -2237,9 +2279,11 @@ function paintChart() {
 function chartSummary() {
   if (!chartRows.length) return 'Sin datos';
   const values = chartRows.map(r => r.value);
-  return 'Carga de ' + chartName + ' en ' + chartRows.length + ' sesiones: de '
-    + kg(values[0]) + ' a ' + kg(values[values.length - 1])
-    + ', máximo ' + kg(Math.max(...values)) + '. La tabla equivalente está bajo el botón «Ver tabla».';
+  const metric = progressMetric(chartName);
+  const format = value => nf1.format(value) + ' ' + metric.unit;
+  return metric.label + ' de ' + chartName + ' en ' + chartRows.length + ' sesiones: de '
+    + format(values[0]) + ' a ' + format(values[values.length - 1])
+    + ', máximo ' + format(Math.max(...values)) + '. La tabla equivalente está bajo el botón «Ver tabla».';
 }
 
 /* --- Comparación de sesiones ------------------------------------------- */
@@ -2311,6 +2355,10 @@ function comparisonData(sessions) {
       values: sessions.map((session, index) => {
         const entry = entriesBySession[index].get(key);
         if (!entry) return null;
+        if (isFondosEntry(entry)) {
+          const value = averageFondosReps(entry);
+          return value === null ? null : { value, unit: PROGRESS_REPS.unit, sets: num(entry.sets) };
+        }
         const load = num(entry.load);
         const reps = num(entry.reps);
         const setsOnly = isAbdominalEntry(session, entry) && num(entry.sets) > 0;
@@ -2434,6 +2482,9 @@ function paintComparisonChart() {
 
 function comparisonCell(item) {
   if (!item) return '—';
+  if (item.unit === PROGRESS_REPS.unit) {
+    return nf1.format(item.value) + ' ' + item.unit + ' · ' + progressScheme(item, PROGRESS_REPS);
+  }
   if (item.load > 0) {
     return nf1.format(item.load) + ' kg' + (item.sets > 0 && item.reps > 0 ? ' · ' + item.sets + '×' + item.reps : '');
   }

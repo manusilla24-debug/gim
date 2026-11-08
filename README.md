@@ -60,8 +60,13 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   ciclo, borrador e historial. Se pueden añadir, renombrar y eliminar.
 - **Progresión** por ejercicio: carga máxima de cada sesión, con mejor marca,
   última carga y variación. «Ver tabla» muestra la fecha, el bloque, la carga y
-  las notas del ejercicio seleccionado en cada sesión. Debajo se pueden
-  comparar hasta tres sesiones de un mismo bloque, ejercicio a ejercicio,
+  las notas del ejercicio seleccionado en cada sesión. En **Fondos**, el gráfico,
+  las fichas y las tablas usan la media de repeticiones por serie. Anota en Notas
+  un número entero de repeticiones por cada serie (por ejemplo, `7 8 9 8` con
+  cuatro series da 8). Se admiten espacios, comas, punto y coma y barras como
+  separadores. Si la cantidad de números no coincide con las series, esa sesión
+  queda sin media. También se calculan las medias de las sesiones guardadas.
+  Debajo se pueden comparar hasta tres sesiones de un mismo bloque, ejercicio a ejercicio,
   mediante tres líneas de carga y una tabla con cargas, series y repeticiones.
 - **Selector de bloques en móvil**: cada bloque muestra la letra a la izquierda
   y el nombre y el enfoque del día a su derecha.

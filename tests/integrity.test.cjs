@@ -127,6 +127,22 @@ vm.runInContext(read('assets/app.js').replace(/boot\(\);\s*$/, ''), context);
     assert.equal(variantRows.length, 2);
     assert.equal(variantRows[0].values[1], null);
     assert.equal(variantRows[0].values[2].load, 50);
+    const fondos = { exerciseId: 'a5', name: 'Fondos', load: '', sets: 4, note: '7 8 9 8' };
+    const legacyFondos = { name: 'Fondos', sets: '3', note: '10 10 10' };
+    const firstFondos = session('fondos1', old.iso, [legacyFondos]);
+    const lastFondos = session('fondos2', recent.iso, [fondos]);
+    const incompleteFondos = session('fondos3', '2026-10-05T12:00:00Z', [{ ...fondos, note: '8 9' }]);
+    state.sessions = [incompleteFondos, lastFondos, firstFondos];
+    assert.equal(trackedNames().get('Fondos'), 2);
+    assert.deepEqual(Array.from(seriesFor('Fondos', 0), row => row.value), [10, 8]);
+    assert.equal(seriesFor('Fondos', 1)[0].value, 8);
+    const fondosComparison = comparisonData([firstFondos, lastFondos, incompleteFondos]);
+    assert.equal(fondosComparison.length, 1);
+    assert.deepEqual(Array.from(fondosComparison[0].values, comparisonCell), ['10 reps/serie · 3 series', '8 reps/serie · 4 series', '—']);
+    assert.equal(averageFondosReps({ ...fondos, sets: 2, note: '7, 8' }), 7.5);
+    assert.equal(averageFondosReps({ ...fondos, sets: 1, note: '0' }), 0);
+    assert.equal(averageFondosReps({ ...fondos, sets: 1, note: '-3' }), null);
+    assert.equal(averageFondosReps({ ...fondos, sets: 3 }), null);
     // Todas las variantes recuperan su referencia desde cualquiera de los huecos.
     const rowingVariants = ROUTINE_BY_ID.get('b').exercises.find(item => item.id === 'b2').variants;
     for (const name of rowingVariants) {
