@@ -1288,7 +1288,7 @@ function applyRoutineAccent() {
 
 function renderStats() {
   const sessions = state.sessions;
-  $('statSessions').textContent = nf0.format(sessions.length);
+  $('statSessions').textContent = nf0.format(trainingDays().length);
 
   const last = sessions[0];
   const statLast = $('statLast');
@@ -1321,8 +1321,13 @@ function bestLoads() {
   return [...best.values()].sort((a, b) => b.load - a.load);
 }
 
+/* Varios bloques cerrados en una misma fecha local cuentan como un entrenamiento. */
+function trainingDays() {
+  return [...new Set(state.sessions.map(session => dateKey(new Date(session.iso))))];
+}
+
 function currentStreak() {
-  const keys = [...new Set(state.sessions.map(session => dateKey(new Date(session.iso))))].sort().reverse();
+  const keys = trainingDays().sort().reverse();
   if (!keys.length) return 0;
   let streak = 1;
   for (let index = 1; index < keys.length; index += 1) {
@@ -1349,20 +1354,18 @@ function renderHome() {
     ? 'Es el bloque que llevas más tiempo sin entrenar: última sesión ' + relativeDay(previous.iso) + '. Puedes elegir cualquier otro.'
     : 'Todavía no has registrado este bloque, por eso tiene prioridad. Puedes elegir cualquier otro.';
 
-  const thisMonth = state.sessions.filter(session => {
-    const when = new Date(session.iso);
-    const now = new Date();
-    return when.getMonth() === now.getMonth() && when.getFullYear() === now.getFullYear();
-  }).length;
+  const days = trainingDays();
+  const month = dateKey(new Date()).slice(0, 7);
+  const thisMonth = days.filter(day => day.slice(0, 7) === month).length;
   const homeStat = (label, value, note) => el('div', { class: 'home-stat' },
     el('dt', { class: 'home-stat__label', text: label }),
     el('dd', { class: 'home-stat__value', text: value }),
     el('span', { class: 'home-stat__note', text: note })
   );
   $('homeStats').replaceChildren(
-    homeStat('Sesiones', nf0.format(state.sessions.length), 'historial completo'),
+    homeStat('Entrenamientos', nf0.format(days.length), 'días en el historial'),
     homeStat('Este mes', nf0.format(thisMonth), thisMonth === 1 ? 'entrenamiento' : 'entrenamientos'),
-    homeStat('Ritmo', nf0.format(currentStreak()), 'sesiones sin pausas largas')
+    homeStat('Ritmo', nf0.format(currentStreak()), 'días sin pausas largas')
   );
 
   $('homeRecent').replaceChildren(recent.length

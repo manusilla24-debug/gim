@@ -109,7 +109,11 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   ni una apertura simulada con JavaScript.
 - **Controles al final del registro**: terminar, guardar y vaciar quedan debajo
   de los ejercicios, sin flotar sobre los campos al desplazarse.
-- **Resumen directo** con el número de sesiones y la última actividad realizada.
+- **Resumen directo** con el número de entrenamientos (días distintos, según la
+  fecha local) y la última actividad realizada. Cerrar varios bloques el mismo día
+  cuenta una sola vez en el total y en «Este mes»; cada bloque se conserva por
+  separado en el historial. «Ritmo» cuenta días entrenados sin pausas de más de
+  siete días entre ellos. Los días marcados como «Otros» no suman entrenamientos.
 - **Copiar la última sesión** del bloque para partir de lo que ya se hizo.
 - **Entrenador local**: consulta ejercicios por nombre, compara sus tres últimas
   referencias con fechas y notas, recupera la última sesión del bloque, resume
@@ -222,6 +226,7 @@ Las comprobaciones del entrenador se ejecutan con Node, sin instalar paquetes:
 node tests/coach.test.cjs
 node tests/integrity.test.cjs
 node tests/calendar.test.cjs
+node tests/training-days.test.cjs
 node tests/recommendation.test.cjs
 node tests/offline.test.cjs
 node --check assets/app.js
