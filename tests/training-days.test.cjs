@@ -66,4 +66,20 @@ vm.runInContext('state.sessions.splice(0, 1); renderStats(); renderHome();', con
 assert.equal(hosts.statSessions.textContent, '2');
 assert.equal(stats()[1].value, '1');
 assert.equal(stats()[1].note, 'entrenamiento');
+vm.runInContext(`
+  state = emptyLog();
+  renderSessionHead();
+  assert.equal(document.getElementById('bibNumber').textContent, '01');
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  state.sessions = [record(yesterday.toISOString()), record(yesterday.toISOString(), 'b')];
+  renderSessionHead();
+  assert.equal(document.getElementById('bibNumber').textContent, '02');
+  state.sessions.unshift(record(new Date().toISOString()));
+  renderSessionHead();
+  assert.equal(document.getElementById('bibNumber').textContent, '02');
+  state.sessions.unshift(record(new Date().toISOString(), 'e'));
+  renderSessionHead();
+  assert.equal(document.getElementById('bibNumber').textContent, '02');
+`, context);
 console.log('Entrenamientos: días locales únicos, mes, ritmo, vacío y conservación del historial OK.');

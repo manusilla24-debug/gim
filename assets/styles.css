@@ -21,7 +21,7 @@
   --ink-2:          #41474D;
   --muted:          #5F666C;
 
-  /* Acento del bloque activo: A naranja, B azul, C verde, D rojo. */
+  /* Acento del bloque activo: A naranja, B azul, C verde, D rojo, E dorado. */
   --accent:         #C95718;
   --accent-hover:   #A94611;
   --accent-on:      #FFFFFF;
@@ -30,6 +30,7 @@
   --routine-b:      #1A5FA8;
   --routine-c:      #23814B;
   --routine-d:      #CE2029;
+  --routine-e:      #946B08;
   --activity-other: #8050B5;
 
   /* Estado (siempre acompañado de signo o rótulo, nunca color a secas) */
@@ -68,6 +69,7 @@
     --routine-b:     #6DA9E5;
     --routine-c:     #55B878;
     --routine-d:     #F85B61;
+    --routine-e:     #E8C55A;
     --good:          #3FA34D;
     --crit:          #E06A66;
   }
@@ -92,6 +94,7 @@
   --routine-b:     #6DA9E5;
   --routine-c:     #55B878;
   --routine-d:     #F85B61;
+  --routine-e:     #E8C55A;
   --good:          #3FA34D;
   --crit:          #E06A66;
 }
@@ -118,6 +121,15 @@
   --accent-hover: #A91421;
   --accent-wash: rgba(206, 32, 41, 0.08);
 }
+:root[data-routine="e"] {
+  --accent: var(--routine-e);
+  --accent-hover: #765306;
+  --accent-wash: rgba(148, 107, 8, 0.08);
+}
+:root[data-theme="dark"][data-routine="e"] {
+  --accent-hover: #F2D884;
+  --accent-wash: rgba(232, 197, 90, 0.12);
+}
 :root[data-theme="dark"][data-routine="d"] {
   --accent: var(--routine-d);
   --accent-hover: #FF7E86;
@@ -139,6 +151,10 @@
   --accent-wash: rgba(85, 184, 120, 0.12);
 }
 @media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-routine="e"] {
+    --accent-hover: #F2D884;
+    --accent-wash: rgba(232, 197, 90, 0.12);
+  }
   :root:not([data-theme="light"])[data-routine="d"] {
     --accent: var(--routine-d);
     --accent-hover: #FF7E86;
@@ -396,6 +412,7 @@ body {
 .activity-ring--b { stroke: var(--routine-b); }
 .activity-ring--c { stroke: var(--routine-c); }
 .activity-ring--d { stroke: var(--routine-d); }
+.activity-ring--e { stroke: var(--routine-e); }
 .activity-ring--others { stroke: var(--activity-other); }
 .week__list { display: grid; gap: 8px; list-style: none; padding: 0; margin: 0; }
 .week__session { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); color: var(--ink); text-align: left; cursor: pointer; }
@@ -423,6 +440,7 @@ body {
 .home-list__code--b { color: var(--routine-b); }
 .home-list__code--c { color: var(--routine-c); }
 .home-list__code--d { color: var(--routine-d); }
+.home-list__code--e { color: var(--routine-e); }
 .home-list__rank { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
 .home-list__main { min-width: 0; font-weight: 600; line-height: 1.25; }
 .home-list__main small { display: block; margin-top: 4px; font-size: 11px; font-weight: 400; color: var(--muted); }
@@ -754,6 +772,7 @@ body {
 
 @media (max-width: 960px) {
   .split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .split__custom { grid-column: 1 / -1; }
   .split__flag { display: none; }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .stat__value { font-size: 22px; }
@@ -1153,6 +1172,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .comparison-chart[data-routine="b"], .comparison-legend[data-routine="b"] { --comparison-base: var(--routine-b); }
 .comparison-chart[data-routine="c"], .comparison-legend[data-routine="c"] { --comparison-base: var(--routine-c); }
 .comparison-chart[data-routine="d"], .comparison-legend[data-routine="d"] { --comparison-base: var(--routine-d); }
+.comparison-chart[data-routine="e"], .comparison-legend[data-routine="e"] { --comparison-base: var(--routine-e); }
 .comparison-line { fill: none; stroke-width: 2.25; stroke-linecap: round; stroke-linejoin: round; }
 .comparison-line--1 { stroke: var(--comparison-base); }
 .comparison-line--2 { stroke: color-mix(in srgb, var(--comparison-base) 68%, var(--ink)); }
@@ -1362,6 +1382,7 @@ button.calendar__day:focus-visible { outline: 2px solid var(--accent); outline-o
 .calendar__key--b { background: var(--routine-b); }
 .calendar__key--c { background: var(--routine-c); }
 .calendar__key--d { background: var(--routine-d); }
+.calendar__key--e { background: var(--routine-e); }
 .calendar__key--others { background: var(--activity-other); }
 .other-days { margin-top: 24px; }
 .other-days .card__head { border-bottom: 0; }

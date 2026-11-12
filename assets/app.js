@@ -62,6 +62,10 @@ const SPLIT = [
       { id: 'd3', name: 'Extensión de gemelos' },
       { id: 'd4', name: 'Curl femoral tumbado' }
     ]
+  },
+  {
+    id: 'e', code: 'E', name: 'Entreno personalizado', focus: 'A tu medida',
+    optional: true, exercises: []
   }
 ];
 
@@ -492,8 +496,51 @@ function volumeOf(entries) {
 
 function exercisesOf(routineId) {
   const routine = ROUTINE_BY_ID.get(routineId);
-  const extra = (state.extra[routineId] || []).map(e => Object.assign({ custom: true }, e));
+  const extra = (state.extra[routineId] || []).map(e => {
+    if (routineId !== 'e') return Object.assign({ custom: true }, e);
+    const source = knownExercise(e.name.trim());
+    return Object.assign({}, e, {
+      custom: true, historyId: source ? source.id : e.id,
+      equip: source ? source.equip : '',
+      tracksLoad: source ? source.tracksLoad : true,
+      tracksSetsOnly: source ? source.tracksSetsOnly : false
+    });
+  });
   return routine.exercises.concat(extra);
+}
+
+function knownExercise(name) {
+  return SPLIT.flatMap(routine => routine.exercises).find(exercise =>
+    exercise.name === name || (exercise.variants || []).includes(name));
+}
+
+/* Rutina completa y nombres creados por el atleta, sin mezclar otros perfiles. */
+function personalExerciseGroups() {
+  const seen = new Set();
+  const addName = (names, value) => {
+    const name = value.trim();
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    names.push(name);
+  };
+  const groups = SPLIT.map(routine => {
+    const names = [];
+    exercisesOf(routine.id).forEach(exercise => {
+      (exercise.variants || [exercise.name]).forEach(name => addName(names, name));
+    });
+    return { routine, names };
+  });
+  // Las definiciones actuales tienen prioridad sobre el bloque de un registro.
+  state.sessions.forEach(session => {
+    const group = groups.find(item => item.routine.id === session.routineId)
+      || groups.find(item => item.routine.id === 'e');
+    session.entries.forEach(entry => addName(group.names, entry.name));
+  });
+  return groups;
+}
+
+function personalExerciseNames() {
+  return personalExerciseGroups().flatMap(group => group.names);
 }
 
 /* Última carga registrada para un ejercicio, para saber por dónde seguir. */
@@ -511,6 +558,9 @@ function historyGroupOf(name, exerciseId) {
 }
 
 function matchesHistoryEntry(entry, name, exerciseId, legacyName) {
+  if ((state.extra.e || []).some(exercise => exercise.id === exerciseId && exercise.name.trim() === name)) {
+    return entry.name === name;
+  }
   const group = historyGroupOf(name, exerciseId);
   if (group) return entry.name === name && (!entry.exerciseId || historyGroupOf(entry.name, entry.exerciseId) === group);
   return (entry.exerciseId === exerciseId && (!legacyName || entry.name === name))
@@ -531,13 +581,14 @@ function lastRecordOf(name, exerciseId, legacyName) {
 /* Se prioriza el bloque menos reciente; los no registrados van primero.
    El orden de SPLIT solo desempata. No intervienen borradores ni días de Otros. */
 function recommendedRoutine(sessions = state.sessions) {
-  const latest = new Map(SPLIT.map(routine => [routine.id, -Infinity]));
+  const routines = SPLIT.filter(routine => !routine.optional);
+  const latest = new Map(routines.map(routine => [routine.id, -Infinity]));
   sessions.forEach(session => {
     if (!session || !latest.has(session.routineId)) return;
     const when = Date.parse(session.iso);
     if (Number.isFinite(when)) latest.set(session.routineId, Math.max(latest.get(session.routineId), when));
   });
-  return SPLIT.reduce((oldest, routine) => latest.get(routine.id) < latest.get(oldest.id) ? routine : oldest);
+  return routines.reduce((oldest, routine) => latest.get(routine.id) < latest.get(oldest.id) ? routine : oldest);
 }
 
 function renderSplit() {
@@ -547,7 +598,7 @@ function renderSplit() {
     const isActive = routine.id === state.activeId;
     // Solo se marca la recomendada cuando no es la que está abierta.
     const isNext = routine.id === recommended.id && !isActive;
-    return el('li', {},
+    return el('li', { class: routine.optional ? 'split__custom' : '' },
       el('button', {
         class: 'split__btn',
         type: 'button',
@@ -1626,7 +1677,7 @@ function renderSessionHead() {
   const routine = ROUTINE_BY_ID.get(state.activeId);
   $('routineTag').textContent = 'Bloque ' + routine.code + ' · ' + routine.focus;
   $('routineTitle').textContent = routine.name;
-  $('bibNumber').textContent = pad2(state.sessions.length + 1);
+  $('bibNumber').textContent = pad2(new Set(trainingDays().concat(dateKey(new Date()))).size);
 
   const today = new Date();
   const time = $('todayDate');
@@ -1658,10 +1709,27 @@ function renderLog() {
     const nameBlock = exercise.custom
       ? el('div', { class: 'ex__name' },
           el('input', {
+            id: inputId('name'),
             class: 'ex__nameinput', type: 'text', value: exercise.name,
             placeholder: 'Nombre del ejercicio', 'aria-label': 'Nombre del ejercicio',
             dataset: { field: 'name' }
           }),
+          routineId === 'e' ? el('label', { class: 'ex__variant' },
+            el('span', { class: 'sr', text: 'Elegir ya existente' }),
+            el('select', {
+              id: inputId('savedExercise'),
+              'aria-label': 'Elegir ya existente',
+              dataset: { field: 'savedExercise' }
+            },
+              el('option', { value: '', text: 'Elegir ya existente' }),
+              personalExerciseGroups().filter(group => group.names.length).map(group =>
+                el('optgroup', { label: 'Bloque ' + group.routine.code + ' · ' + group.routine.name },
+                  group.names.map(name => el('option', {
+                    value: name, text: name, selected: name === exercise.name ? true : null
+                  }))
+                ))
+            )
+          ) : null,
           previousHint
         )
       : el('div', { class: 'ex__name' },
@@ -1725,7 +1793,7 @@ function renderLog() {
         el('label', { class: 'field__label', for: inputId('note'), text: setsOnly ? 'Notas' : 'Nota' }),
         el('input', {
           id: inputId('note'), type: 'text', value: values.note,
-          placeholder: exercise.id === FONDOS.id ? 'Reps por serie, p. ej. 10 10 10' : 'Sensaciones, ajustes…',
+          placeholder: exerciseName === FONDOS.name ? 'Reps por serie, p. ej. 10 10 10' : 'Sensaciones, ajustes…',
           dataset: { field: 'note' }
         })
       ),
@@ -1747,7 +1815,7 @@ function renderLog() {
   $('logRows').replaceChildren(...(rows.length ? rows : [
     el('li', { class: 'empty' },
       el('p', { class: 'empty__title', text: 'Sin ejercicios todavía' }),
-      el('p', { text: 'Este bloque está preparado para añadir ejercicios más adelante.' })
+      el('p', { text: 'Pulsa «Añadir ejercicio» para escribir un nombre o elegir uno de tu historial.' })
     )
   ]));
 }
@@ -1956,7 +2024,14 @@ function renderExerciseFilter() {
         if (!names.includes(name)) names.push(name);
       });
     });
-    const options = names.map(name => {
+    if (routine.id === 'e') {
+      state.sessions.filter(session => session.routineId === 'e').forEach(session => {
+        session.entries.forEach(entry => {
+          if (!names.includes(entry.name)) names.push(entry.name);
+        });
+      });
+    }
+    const options = names.filter(name => name.trim() && !placed.has(name)).map(name => {
         placed.add(name);
         const n = counts.get(name) || 0;
         return el('option', {
@@ -2335,6 +2410,7 @@ function comparisonData(sessions) {
     idsByName.get(entry.name).add(entry.exerciseId);
   }));
   const keyOf = (entry, session) => {
+    if (session.routineId === 'e') return JSON.stringify(['e', entry.name]);
     const routine = ROUTINE_BY_ID.get(session.routineId);
     const exercise = routine && routine.exercises.find(item => item.name === entry.name
       || item.legacyName === entry.name || (item.variants || []).includes(entry.name));
@@ -2595,7 +2671,7 @@ function renameExtra(exerciseId, value) {
 function addExtraExercise() {
   const routineId = state.activeId;
   if (!state.extra[routineId]) state.extra[routineId] = [];
-  const id = 'x' + Date.now().toString(36);
+  const id = 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
   state.extra[routineId].push({ id, name: '' });
   save(true);
   renderLog();
@@ -2630,10 +2706,10 @@ async function completeSession() {
     if (!name) continue;
     if (!(sets > 0 || values.note || (!setsOnly && (load > 0 || reps > 0)))) continue;
     entries.push({
-      exerciseId: exercise.id,
+      exerciseId: exercise.historyId || exercise.id,
       name,
       equip: exercise.equip || '',
-      load: setsOnly ? '' : (load === '' ? '' : load),
+      load: setsOnly || exercise.tracksLoad === false ? '' : (load === '' ? '' : load),
       sets: sets === '' ? '' : sets,
       reps: setsOnly ? '' : (reps === '' ? '' : reps),
       note: String(values.note || '').trim()
@@ -3075,7 +3151,7 @@ function iconPencil() {
 }
 
 function isAbdominalEntry(session, entry) {
-  return session.routineId === 'c' && entry.name === 'Abdominales';
+  return (session.routineId === 'c' || session.routineId === 'e') && entry.name === 'Abdominales';
 }
 
 function historyEntryLabel(session, entry) {
@@ -3291,7 +3367,12 @@ function bindEvents() {
     const field = event.target.dataset.field;
     const row = event.target.closest('[data-ex]');
     if (!field || !row) return;
-    if (field === 'name') renameExtra(row.dataset.ex, event.target.value);
+    if (field === 'savedExercise') return;
+    if (field === 'name') {
+      renameExtra(row.dataset.ex, event.target.value);
+      const removeLabel = row.querySelector('[data-remove] .sr');
+      if (removeLabel) removeLabel.textContent = 'Quitar ' + event.target.value;
+    }
     else {
       if (field === 'load') event.target.value = decimalText(event.target.value);
       updateDraft(row.dataset.ex, field, event.target.value);
@@ -3300,6 +3381,15 @@ function bindEvents() {
   rows.addEventListener('change', event => {
     const row = event.target.closest('[data-ex]');
     if (!row || !event.target.dataset.field) return;
+    if (state.activeId === 'e' && event.target.dataset.field === 'savedExercise') {
+      if (!event.target.value) return;
+      renameExtra(row.dataset.ex, event.target.value);
+      const exerciseId = row.dataset.ex;
+      renderLog();
+      const target = $('logRows').querySelector('[data-ex="' + exerciseId + '"] [data-field="savedExercise"]');
+      if (target) target.focus();
+      return;
+    }
     if (event.target.dataset.field === 'variant') {
       updateDraft(row.dataset.ex, 'variant', event.target.value);
       renderLog();
@@ -3314,6 +3404,29 @@ function bindEvents() {
   rows.addEventListener('click', event => {
     const button = event.target.closest('[data-remove]');
     if (button) removeExtraExercise(button.dataset.remove);
+  });
+  rows.addEventListener('focusout', event => {
+    if (state.activeId !== 'e' || event.target.dataset.field !== 'name') return;
+    const row = event.target.closest('[data-ex]');
+    const exercise = exercisesOf('e').find(item => item.id === row.dataset.ex);
+    const setsOnly = exercise.tracksSetsOnly === true;
+    const tracksLoad = exercise.tracksLoad !== false;
+    const fieldsChanged = setsOnly !== row.classList.contains('ex--sets-only')
+      || (!setsOnly && tracksLoad !== !!row.querySelector('[data-field="load"]'));
+    if (!fieldsChanged) {
+      const previous = lastRecordOf(exercise.name.trim(), exercise.id);
+      const hint = row.querySelector('.ex__last');
+      hint.textContent = previous
+        ? 'Última: ' + previousLabel(previous.record, tracksLoad, setsOnly) + ' · ' + relativeDay(previous.iso)
+        : 'Sin registro previo';
+      hint.classList.toggle('ex__last--record', !!previous);
+      row.querySelector('[data-field="savedExercise"]').value = personalExerciseNames().includes(exercise.name) ? exercise.name : '';
+      return;
+    }
+    const nextId = event.relatedTarget && event.relatedTarget.id;
+    renderLog();
+    const next = (nextId && $(nextId)) || $('logRows').querySelector('[data-ex="' + exercise.id + '"] [data-field="sets"]');
+    if (next) next.focus();
   });
 
   $('addExercise').addEventListener('click', addExtraExercise);

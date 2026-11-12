@@ -114,6 +114,23 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   cuenta una sola vez en el total y en «Este mes»; cada bloque se conserva por
   separado en el historial. «Ritmo» cuenta días entrenados sin pausas de más de
   siete días entre ellos. Los días marcados como «Otros» no suman entrenamientos.
+- **Bloque E · Entreno personalizado**, en dorado y debajo de C y D en móvil.
+  Empieza vacío: pulsa **Añadir ejercicio** y escribe su nombre o usa el mismo
+  tipo de desplegable que en el resto de la app: **Elegir ya existente** ofrece
+  todos los ejercicios y variantes de A–D, aunque todavía no tengan registros,
+  además de los nombres creados por el atleta. Se agrupan en orden A, B, C, D y E,
+  respetando el orden de la rutina y mostrando cada nombre una sola vez.
+  Escribir un nombre nuevo añade
+  un ejercicio reutilizable. Progresión muestra cada ejercicio una sola vez y
+  reúne sus registros de todos los bloques; hacer press de banca inclinado en E
+  suma datos al mismo ejercicio de A. Los ejercicios y el borrador se
+  conservan al recargar; para cambiar la selección puedes quitar o añadir filas.
+  E aparece en el filtro del historial, en Progresión, en la comparación de
+  sesiones y en el calendario. Fondos y Abdominales conservan sus campos
+  específicos. El bloque es opcional y no cambia la recomendación entre A–D.
+  Utiliza el formato de datos vigente, sin migrar ni borrar los registros previos.
+  El dorsal **Entreno X** cuenta días distintos e incluye el día actual: cerrar
+  varios bloques hoy no aumenta ese número.
 - **Copiar la última sesión** del bloque para partir de lo que ya se hizo.
 - **Entrenador local**: consulta ejercicios por nombre, compara sus tres últimas
   referencias con fechas y notas, recupera la última sesión del bloque, resume
@@ -227,6 +244,7 @@ node tests/coach.test.cjs
 node tests/integrity.test.cjs
 node tests/calendar.test.cjs
 node tests/training-days.test.cjs
+node tests/custom-training.test.cjs
 node tests/recommendation.test.cjs
 node tests/offline.test.cjs
 node --check assets/app.js
