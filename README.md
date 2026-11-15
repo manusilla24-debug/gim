@@ -45,12 +45,16 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   una pastilla con el color del bloque, sin etiqueta de objetivo. Una nueva mejor
   carga recibe un aviso especial.
 - **Cargas decimales**: los campos aceptan tanto coma como punto en móvil
-  (`42,5` y `42.5` se guardan como la misma carga).
+  (`42,5` y `42.5` se guardan como la misma carga), durante el entrenamiento y
+  al editar el historial. Puedes indicar cualquier carga decimal sin saltos
+  obligatorios de 2,5 kg ni un máximo establecido por el formulario.
 - **Variantes de ejercicio**: los dos huecos de remo permiten elegir entre
   máquina de palanca, polea baja, remo de arriba y remo en T; la extensión de
   hombro permite seleccionar ejecución bilateral o unilateral. Cada variante
-  conserva su propia serie dentro del bloque correspondiente en Progresión. Al
-  elegir un remo, la última referencia, el entrenador y la comparación de
+  conserva su propia serie dentro del bloque correspondiente en Progresión.
+  Cambiar de variante empieza con los campos vacíos; si ya hay carga, series,
+  repeticiones o notas, pide confirmación antes de vaciarlos. Cancelar conserva
+  la variante y lo anotado. Al elegir un remo, la última referencia, el entrenador y la comparación de
   sesiones siguen esa variante aunque cambies entre el primer y el segundo
   hueco. Los pesos de variantes distintas se mantienen separados. Al
   cargar historiales anteriores, las sesiones personales de septiembre de 2026
@@ -242,6 +246,7 @@ Las comprobaciones del entrenador se ejecutan con Node, sin instalar paquetes:
 ```bash
 node tests/coach.test.cjs
 node tests/integrity.test.cjs
+node tests/entry-editing.test.cjs
 node tests/calendar.test.cjs
 node tests/training-days.test.cjs
 node tests/custom-training.test.cjs

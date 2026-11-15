@@ -2662,6 +2662,26 @@ function updateDraft(exerciseId, field, value) {
   save();
 }
 
+async function changeDraftVariant(exerciseId, variant) {
+  const log = state;
+  const routineId = state.activeId;
+  const exercise = exercisesOf(routineId).find(item => item.id === exerciseId);
+  if (!exercise || !exercise.variants || !exercise.variants.includes(variant)) return;
+  const values = draftOf(routineId, exerciseId);
+  if (selectedExerciseName(exercise, values) === variant) return;
+  const written = ['load', 'sets', 'reps', 'note'].some(field => String(values[field] ?? '').trim() !== '');
+  if (written) {
+    const ok = await confirmAction('Cambiar variante',
+      'Se vacían la carga, las series, las repeticiones y la nota de este ejercicio para registrar «' + variant + '».',
+      'Cambiar y vaciar');
+    if (!ok) return;
+  }
+  if (state !== log || state.activeId !== routineId) return;
+  if (!state.draft[routineId]) state.draft[routineId] = {};
+  state.draft[routineId][exerciseId] = { load: '', sets: '', reps: '', note: '', variant };
+  save();
+}
+
 function renameExtra(exerciseId, value) {
   const list = state.extra[state.activeId] || [];
   const found = list.find(e => e.id === exerciseId);
@@ -2832,8 +2852,10 @@ function editNumberField(label, field, value) {
   return el('label', { class: 'field' },
     el('span', { class: 'field__label', text: label }),
     el('input', {
-      type: 'number', inputmode: field === 'load' ? 'decimal' : 'numeric',
-      step: field === 'load' ? '2.5' : '1', min: '0', value,
+      type: field === 'load' ? 'text' : 'number', inputmode: field === 'load' ? 'decimal' : 'numeric',
+      class: field === 'load' ? 'input--decimal' : null,
+      pattern: field === 'load' ? '[0-9]*[.,]?[0-9]*' : null,
+      step: field === 'load' ? null : '1', min: field === 'load' ? null : '0', value,
       dataset: { editField: field }
     })
   );
@@ -3366,7 +3388,7 @@ function bindEvents() {
   rows.addEventListener('input', event => {
     const field = event.target.dataset.field;
     const row = event.target.closest('[data-ex]');
-    if (!field || !row) return;
+    if (!field || !row || field === 'variant') return;
     if (field === 'savedExercise') return;
     if (field === 'name') {
       renameExtra(row.dataset.ex, event.target.value);
@@ -3378,7 +3400,7 @@ function bindEvents() {
       updateDraft(row.dataset.ex, field, event.target.value);
     }
   });
-  rows.addEventListener('change', event => {
+  rows.addEventListener('change', async event => {
     const row = event.target.closest('[data-ex]');
     if (!row || !event.target.dataset.field) return;
     if (state.activeId === 'e' && event.target.dataset.field === 'savedExercise') {
@@ -3391,8 +3413,11 @@ function bindEvents() {
       return;
     }
     if (event.target.dataset.field === 'variant') {
-      updateDraft(row.dataset.ex, 'variant', event.target.value);
+      const exerciseId = row.dataset.ex;
+      await changeDraftVariant(exerciseId, event.target.value);
       renderLog();
+      const target = $('logRows').querySelector('[data-ex="' + exerciseId + '"] [data-field="variant"]');
+      if (target) target.focus();
       return;
     }
     const inputs = row.querySelectorAll('input[data-field], select[data-field]');
@@ -3537,6 +3562,9 @@ function bindEvents() {
       event.preventDefault();
       $('confirmDialog').close('ok');
     }
+  });
+  $('editSessionForm').addEventListener('input', event => {
+    if (event.target.dataset.editField === 'load') event.target.value = decimalText(event.target.value);
   });
   $('editSessionForm').addEventListener('submit', saveEditedSession);
   $('cancelEditSession').addEventListener('click', () => $('editSessionDialog').close());
