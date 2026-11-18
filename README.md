@@ -135,6 +135,20 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
   Utiliza el formato de datos vigente, sin migrar ni borrar los registros previos.
   El dorsal **Entreno X** cuenta días distintos e incluye el día actual: cerrar
   varios bloques hoy no aumenta ese número.
+- **Ejercicios extra en A–E**: al pulsar **Añadir ejercicio** puedes escribir un
+  nombre nuevo o usar **Elegir ya existente**. Los programados mantienen su bloque
+  A–D en el catálogo; todos los añadidos se agrupan en E, independientemente del
+  entrenamiento donde los uses. Un mismo nombre comparte referencias, progresión
+  y comparación entre bloques, conservando cada registro en su fecha original.
+  Las variantes con nombres distintos siguen separadas. Al cerrar, un extra con
+  nombre se guarda aunque no tenga cifras: por ejemplo, **Cinta** con la nota
+  **3 km**, o **3 km en cinta** como nombre. No añade tonelaje ni inventa un peso
+  para el gráfico. Los ejercicios programados sin completar no se añaden al
+  historial por tener ya un nombre en la rutina.
+  Este cambio evita nuevas omisiones; no reconstruye registros antiguos que ya
+  se guardaron sin el extra. La lista de extras no indica en qué fechas se hizo
+  cada ejercicio: recuperar una omisión pasada requiere confirmar su fecha y
+  corregir esa sesión o una copia, sin añadirlo a otros días por suposición.
 - **Copiar la última sesión** del bloque para partir de lo que ya se hizo.
 - **Entrenador local**: consulta ejercicios por nombre, compara sus tres últimas
   referencias con fechas y notas, recupera la última sesión del bloque, resume

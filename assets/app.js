@@ -497,13 +497,12 @@ function volumeOf(entries) {
 function exercisesOf(routineId) {
   const routine = ROUTINE_BY_ID.get(routineId);
   const extra = (state.extra[routineId] || []).map(e => {
-    if (routineId !== 'e') return Object.assign({ custom: true }, e);
     const source = knownExercise(e.name.trim());
     return Object.assign({}, e, {
       custom: true, historyId: source ? source.id : e.id,
-      equip: source ? source.equip : '',
-      tracksLoad: source ? source.tracksLoad : true,
-      tracksSetsOnly: source ? source.tracksSetsOnly : false
+      equip: source ? source.equip : e.equip || '',
+      tracksLoad: source ? source.tracksLoad : e.tracksLoad !== false,
+      tracksSetsOnly: source ? source.tracksSetsOnly : e.tracksSetsOnly === true
     });
   });
   return routine.exercises.concat(extra);
@@ -525,16 +524,17 @@ function personalExerciseGroups() {
   };
   const groups = SPLIT.map(routine => {
     const names = [];
-    exercisesOf(routine.id).forEach(exercise => {
+    routine.exercises.forEach(exercise => {
       (exercise.variants || [exercise.name]).forEach(name => addName(names, name));
     });
     return { routine, names };
   });
-  // Las definiciones actuales tienen prioridad sobre el bloque de un registro.
+  const customNames = groups.find(item => item.routine.id === 'e').names;
+  SPLIT.forEach(routine => exercisesOf(routine.id).filter(exercise => exercise.custom)
+    .forEach(exercise => addName(customNames, exercise.name)));
+  // Los nombres añadidos viven en E; los programados conservan su bloque.
   state.sessions.forEach(session => {
-    const group = groups.find(item => item.routine.id === session.routineId)
-      || groups.find(item => item.routine.id === 'e');
-    session.entries.forEach(entry => addName(group.names, entry.name));
+    session.entries.forEach(entry => addName(customNames, entry.name));
   });
   return groups;
 }
@@ -558,13 +558,8 @@ function historyGroupOf(name, exerciseId) {
 }
 
 function matchesHistoryEntry(entry, name, exerciseId, legacyName) {
-  if ((state.extra.e || []).some(exercise => exercise.id === exerciseId && exercise.name.trim() === name)) {
-    return entry.name === name;
-  }
-  const group = historyGroupOf(name, exerciseId);
-  if (group) return entry.name === name && (!entry.exerciseId || historyGroupOf(entry.name, entry.exerciseId) === group);
-  return (entry.exerciseId === exerciseId && (!legacyName || entry.name === name))
-    || (!entry.exerciseId && (entry.name === name || entry.name === legacyName));
+  return entry.name.trim() === name.trim()
+    || (!entry.exerciseId && legacyName && entry.name === legacyName);
 }
 
 function lastRecordOf(name, exerciseId, legacyName) {
@@ -1714,7 +1709,7 @@ function renderLog() {
             placeholder: 'Nombre del ejercicio', 'aria-label': 'Nombre del ejercicio',
             dataset: { field: 'name' }
           }),
-          routineId === 'e' ? el('label', { class: 'ex__variant' },
+          el('label', { class: 'ex__variant' },
             el('span', { class: 'sr', text: 'Elegir ya existente' }),
             el('select', {
               id: inputId('savedExercise'),
@@ -1729,7 +1724,7 @@ function renderLog() {
                   }))
                 ))
             )
-          ) : null,
+          ),
           previousHint
         )
       : el('div', { class: 'ex__name' },
@@ -1979,7 +1974,7 @@ const PROGRESS_REPS = {
 const progressMetric = name => name === FONDOS.name ? PROGRESS_REPS : PROGRESS_LOAD;
 
 function isFondosEntry(entry) {
-  return entry.name === FONDOS.name && (!entry.exerciseId || entry.exerciseId === FONDOS.id);
+  return entry.name.trim() === FONDOS.name;
 }
 
 function averageFondosReps(entry) {
@@ -1991,7 +1986,7 @@ function averageFondosReps(entry) {
 }
 
 function progressValue(entry) {
-  if (entry.name === FONDOS.name) return isFondosEntry(entry) ? averageFondosReps(entry) : null;
+  if (isFondosEntry(entry)) return averageFondosReps(entry);
   const load = num(entry.load);
   return load > 0 ? load : null;
 }
@@ -2006,9 +2001,12 @@ function progressScheme(row, metric) {
 function trackedNames() {
   const seen = new Map();
   for (const session of state.sessions) {
+    const recorded = new Set();
     for (const entry of session.entries) {
-      if (progressValue(entry) !== null) seen.set(entry.name, (seen.get(entry.name) || 0) + 1);
+      const name = entry.name.trim();
+      if (progressValue(entry) !== null) recorded.add(name);
     }
+    recorded.forEach(name => seen.set(name, (seen.get(name) || 0) + 1));
   }
   return seen;
 }
@@ -2017,20 +2015,7 @@ function renderExerciseFilter() {
   const select = $('exerciseFilter');
   const counts = trackedNames();
   const placed = new Set();
-  const groups = SPLIT.map(routine => {
-    const names = [];
-    exercisesOf(routine.id).filter(ex => ex.tracksLoad !== false || ex.id === FONDOS.id).forEach(exercise => {
-      (exercise.variants || [exercise.name]).forEach(name => {
-        if (!names.includes(name)) names.push(name);
-      });
-    });
-    if (routine.id === 'e') {
-      state.sessions.filter(session => session.routineId === 'e').forEach(session => {
-        session.entries.forEach(entry => {
-          if (!names.includes(entry.name)) names.push(entry.name);
-        });
-      });
-    }
+  const groups = personalExerciseGroups().map(({ routine, names }) => {
     const options = names.filter(name => name.trim() && !placed.has(name)).map(name => {
         placed.add(name);
         const n = counts.get(name) || 0;
@@ -2067,10 +2052,15 @@ function renderExerciseFilter() {
 function seriesFor(name, limit) {
   const rows = [];
   for (const session of state.sessions) {
+    let best = null;
     for (const entry of session.entries) {
-      if (entry.name !== name) continue;
+      if (entry.name.trim() !== name.trim()) continue;
       const value = progressValue(entry);
       if (value === null) continue;
+      if (!best || value > best.value) best = { entry, value };
+    }
+    if (best) {
+      const { entry, value } = best;
       rows.push({
         iso: session.iso,
         value,
@@ -2079,7 +2069,6 @@ function seriesFor(name, limit) {
         note: typeof entry.note === 'string' ? entry.note.trim() : '',
         code: session.code
       });
-      break;
     }
   }
   rows.reverse();
@@ -2401,30 +2390,16 @@ function syncComparisonFilters() {
 }
 
 function comparisonData(sessions) {
-  // Un ejercicio omitido no desplaza las cargas de los demás. Las variantes
-  // conservan referencias independientes; los remos se unen por variante.
-  const idsByName = new Map();
-  sessions.forEach(session => session.entries.forEach(entry => {
-    if (!entry.exerciseId) return;
-    if (!idsByName.has(entry.name)) idsByName.set(entry.name, new Set());
-    idsByName.get(entry.name).add(entry.exerciseId);
-  }));
-  const keyOf = (entry, session) => {
-    if (session.routineId === 'e') return JSON.stringify(['e', entry.name]);
-    const routine = ROUTINE_BY_ID.get(session.routineId);
-    const exercise = routine && routine.exercises.find(item => item.name === entry.name
-      || item.legacyName === entry.name || (item.variants || []).includes(entry.name));
-    const ids = idsByName.get(entry.name);
-    const id = entry.exerciseId || (exercise && exercise.id) || (ids && ids.size === 1 ? [...ids][0] : '');
-    return JSON.stringify([historyGroupOf(entry.name, id) || id, entry.name]);
-  };
+  // El nombre une registros de cualquier bloque; las variantes siguen separadas.
+  const keyOf = entry => entry.name.trim();
   const references = new Map();
   const entriesBySession = sessions.map(session => {
     const entries = new Map();
     session.entries.forEach(entry => {
       const key = keyOf(entry, session);
       if (!references.has(key)) references.set(key, entry);
-      entries.set(key, entry);
+      const score = item => progressValue(item) ?? (isAbdominalEntry(session, item) ? num(item.sets) : num(item.reps));
+      if (!entries.has(key) || score(entry) > score(entries.get(key))) entries.set(key, entry);
     });
     return entries;
   });
@@ -2724,7 +2699,9 @@ async function completeSession() {
     const name = (selectedExerciseName(exercise, values) || '').trim();
     const setsOnly = exercise.tracksSetsOnly === true;
     if (!name) continue;
-    if (!(sets > 0 || values.note || (!setsOnly && (load > 0 || reps > 0)))) continue;
+    // En cualquier bloque, el título de un extra basta para guardarlo.
+    const hasValues = sets > 0 || values.note || (!setsOnly && (load > 0 || reps > 0));
+    if (!exercise.custom && !hasValues) continue;
     entries.push({
       exerciseId: exercise.historyId || exercise.id,
       name,
@@ -3173,7 +3150,7 @@ function iconPencil() {
 }
 
 function isAbdominalEntry(session, entry) {
-  return (session.routineId === 'c' || session.routineId === 'e') && entry.name === 'Abdominales';
+  return entry.name.trim() === 'Abdominales';
 }
 
 function historyEntryLabel(session, entry) {
@@ -3403,7 +3380,7 @@ function bindEvents() {
   rows.addEventListener('change', async event => {
     const row = event.target.closest('[data-ex]');
     if (!row || !event.target.dataset.field) return;
-    if (state.activeId === 'e' && event.target.dataset.field === 'savedExercise') {
+    if (event.target.dataset.field === 'savedExercise') {
       if (!event.target.value) return;
       renameExtra(row.dataset.ex, event.target.value);
       const exerciseId = row.dataset.ex;
@@ -3431,9 +3408,9 @@ function bindEvents() {
     if (button) removeExtraExercise(button.dataset.remove);
   });
   rows.addEventListener('focusout', event => {
-    if (state.activeId !== 'e' || event.target.dataset.field !== 'name') return;
+    if (event.target.dataset.field !== 'name') return;
     const row = event.target.closest('[data-ex]');
-    const exercise = exercisesOf('e').find(item => item.id === row.dataset.ex);
+    const exercise = exercisesOf(state.activeId).find(item => item.id === row.dataset.ex);
     const setsOnly = exercise.tracksSetsOnly === true;
     const tracksLoad = exercise.tracksLoad !== false;
     const fieldsChanged = setsOnly !== row.classList.contains('ex--sets-only')

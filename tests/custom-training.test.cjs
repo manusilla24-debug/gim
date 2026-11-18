@@ -7,7 +7,8 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 function node(tag) {
   return {
-    tag, children: [], attrs: {}, value: '',
+    tag, children: [], attrs: {}, value: '', dataset: {},
+    addEventListener() {},
     setAttribute(key, value) { this.attrs[key] = value; },
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.children = children; }
@@ -18,7 +19,7 @@ const context = vm.createContext({
   console, Intl, Date, Map, Set, assert,
   document: {
     getElementById: id => hosts[id] || (hosts[id] = node('div')),
-    createElement: node
+    createElement: node, createElementNS: (_, tag) => node(tag)
   }
 });
 const read = file => readFileSync(path.join(__dirname, '..', file), 'utf8');
@@ -64,6 +65,7 @@ vm.runInContext(`(async () => {
   assert.equal(lastRecordOf('Press de banca inclinado', 'xpress').record.load, 20);
   assert.equal(lastRecordOf('Remo en máquina', 'xpress'), null);
   confirmAction = async () => true;
+  const realRenderLog = renderLog;
   save = () => {};
   saveNow = () => {};
   renderAll = () => {};
@@ -115,5 +117,87 @@ vm.runInContext(`(async () => {
   state = emptyLog();
   assert.ok(personalExerciseNames().includes('Press de banca inclinado'));
   assert.ok(!personalExerciseNames().includes('Ejercicio propio'));
+  // Todos los extras comparten el selector y sus referencias por nombre.
+  const descendants = item => [item, ...(item.children || []).flatMap(child => typeof child === 'object' ? descendants(child) : [])];
+  for (const routine of SPLIT) {
+    state = emptyLog();
+    state.activeId = routine.id;
+    state.extra[routine.id] = [{ id: 'xshared', name: 'Press de banca inclinado' }];
+    realRenderLog();
+    const controls = descendants(document.getElementById('logRows'));
+    assert.ok(controls.some(item => item.tag === 'input' && item.dataset.field === 'name'));
+    const select = controls.find(item => item.tag === 'select' && item.dataset.field === 'savedExercise');
+    assert.ok(select, routine.id);
+    assert.equal(select.attrs['aria-label'], 'Elegir ya existente');
+    assert.equal(exercisesOf(routine.id).find(item => item.custom).historyId, 'a1');
+    await completeSession();
+    assert.equal(state.sessions[0].routineId, routine.id);
+    assert.equal(state.sessions[0].entries.length, 1);
+    assert.equal(state.sessions[0].entries[0].name, 'Press de banca inclinado');
+    assert.equal(state.sessions[0].entries[0].load, '');
+    assert.equal(state.sessions[0].volume, 0);
+  }
+  state = emptyLog();
+  state.activeId = 'b';
+  state.extra.b = [
+    { id: 'xcinta', name: 'Cinta' }, { id: 'xdistance', name: '3 km en cinta' },
+    { id: 'xpress', name: 'Press de banca inclinado' }, { id: 'xblank', name: '   ' }
+  ];
+  state.draft.b = {
+    xcinta: { note: '3 km', load: '', sets: '', reps: '' },
+    xpress: { load: '30', sets: '3', reps: '10', note: '' }
+  };
+  state.sessions = [
+    { id: 'earlier', iso: '2026-11-01T12:00:00Z', routineId: 'a', entries: [record('old-extra-id', 'Press de banca inclinado', 25)] }
+  ];
+  assert.equal(lastRecordOf('Press de banca inclinado', 'a1').record.load, 25);
+  await completeSession();
+  const mixed = state.sessions[0];
+  assert.equal(mixed.entries.length, 3); // No arrastra ejercicios programados vacíos.
+  assert.equal(mixed.entries.find(item => item.name === 'Cinta').note, '3 km');
+  assert.ok(mixed.entries.some(item => item.name === '3 km en cinta' && item.load === ''));
+  assert.equal(mixed.volume, 900);
+  assert.equal(seriesFor('Cinta', 0).length, 0);
+  assert.equal(seriesFor('Press de banca inclinado', 0).length, 2);
+  assert.ok(personalExerciseGroups()[4].names.includes('Cinta'));
+  assert.ok(!personalExerciseGroups()[1].names.includes('Cinta'));
+  assert.ok(personalExerciseGroups()[0].names.includes('Press de banca inclinado'));
+  assert.ok(!personalExerciseGroups()[4].names.includes('Press de banca inclinado'));
+  assert.equal(comparisonData(state.sessions).filter(item => item.name === 'Press de banca inclinado').length, 1);
+  const savedLog = JSON.parse(JSON.stringify(state));
+  assert.ok(validLogCopy(savedLog));
+  state = normaliseLog(savedLog);
+  assert.equal(state.sessions[0].entries.find(item => item.name === 'Cinta').note, '3 km');
+  state.extra.d = [{ id: 'xbody', name: 'Fondos' }, { id: 'xabs', name: 'Abdominales' }];
+  assert.equal(exercisesOf('d').find(item => item.id === 'xbody').tracksLoad, false);
+  assert.equal(exercisesOf('d').find(item => item.id === 'xabs').tracksSetsOnly, true);
+  // Un nombre repetido dentro del mismo entrenamiento tiene un solo punto.
+  state.sessions = [{ id: 'same', iso: '2026-11-18T12:00:00Z', routineId: 'a', entries: [
+    record('a1', 'Press de banca inclinado', 20), record('xduplicate', 'Press de banca inclinado', 30)
+  ] }];
+  assert.equal(trackedNames().get('Press de banca inclinado'), 1);
+  assert.equal(seriesFor('Press de banca inclinado', 0).length, 1);
+  assert.equal(seriesFor('Press de banca inclinado', 0)[0].value, 30);
+  assert.equal(comparisonData(state.sessions)[0].values[0].value, 30);
+  assert.equal(state.sessions[0].entries.length, 2); // Se conserva el historial original.
+  // Una copia antigua puede conservar el extra pero haber omitido su ejecución.
+  // Normalizar no permite adivinar en qué fechas se hizo.
+  state = normaliseLog({ activeId: 'a', extra: { a: [{ id: 'xcardio', name: '3km cinta' }] },
+    sessions: [{ id: 'past', routineId: 'a', iso: '2026-11-12T13:00:00Z', entries: [] }] });
+  assert.equal(state.sessions[0].entries.length, 0);
+  await completeSession();
+  assert.equal(state.sessions[0].entries.length, 1);
+  assert.equal(state.sessions[0].entries[0].name, '3km cinta');
+  assert.equal(state.sessions[0].entries[0].load, '');
+  assert.equal(state.sessions[0].volume, 0);
+  assert.equal(state.sessions[1].entries.length, 0); // No inventa un registro pasado.
+  state = emptyLog();
+  state.activeId = 'e';
+  state.extra.e = [{ id: 'xcardio6', name: '6km cinta 3x2000' }];
+  await completeSession();
+  assert.equal(state.sessions[0].entries[0].name, '6km cinta 3x2000');
+  assert.equal(state.sessions[0].entries[0].sets, '');
+  assert.equal(state.sessions[0].entries[0].reps, '');
+  assert.equal(state.sessions[0].volume, 0);
 })()`, context).then(() => console.log('Bloque E: historial, reutilización, campos, recarga, comparación y aislamiento OK.'))
   .catch(error => { console.error(error); process.exitCode = 1; });
