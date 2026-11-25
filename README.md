@@ -114,7 +114,9 @@ es CSS propio; no incorpora código ni dependencias de estos proyectos.
 - **Controles al final del registro**: terminar, guardar y vaciar quedan debajo
   de los ejercicios, sin flotar sobre los campos al desplazarse.
 - **Resumen directo** con el número de entrenamientos (días distintos, según la
-  fecha local) y la última actividad realizada. Cerrar varios bloques el mismo día
+  fecha local) y la última actividad realizada. El selector de atletas usa el
+  mismo recuento por días y el texto «entrenamientos» para cada atleta.
+  Cerrar varios bloques el mismo día
   cuenta una sola vez en el total y en «Este mes»; cada bloque se conserva por
   separado en el historial. «Ritmo» cuenta días entrenados sin pausas de más de
   siete días entre ellos. Los días marcados como «Otros» no suman entrenamientos.

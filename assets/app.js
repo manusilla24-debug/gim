@@ -1368,8 +1368,8 @@ function bestLoads() {
 }
 
 /* Varios bloques cerrados en una misma fecha local cuentan como un entrenamiento. */
-function trainingDays() {
-  return [...new Set(state.sessions.map(session => dateKey(new Date(session.iso))))];
+function trainingDays(sessions = state.sessions) {
+  return [...new Set(sessions.map(session => dateKey(new Date(session.iso))))];
 }
 
 function currentStreak() {
@@ -3000,9 +3000,9 @@ function initials(name) {
 
 function summaryOf(userId) {
   const log = store.logs[userId];
-  if (!log || !log.sessions.length) return 'Sin sesiones todavía';
-  const count = log.sessions.length;
-  return count + (count === 1 ? ' sesión · ' : ' sesiones · ') + relativeDay(log.sessions[0].iso);
+  if (!log || !log.sessions.length) return 'Sin entrenamientos todavía';
+  const count = trainingDays(log.sessions).length;
+  return nf0.format(count) + (count === 1 ? ' entrenamiento · ' : ' entrenamientos · ') + relativeDay(log.sessions[0].iso);
 }
 
 function renderProfiles() {

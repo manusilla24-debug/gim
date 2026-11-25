@@ -7,7 +7,7 @@ const vm = require('node:vm');
 const assert = require('node:assert/strict');
 function node(tag) {
   return {
-    tag, children: [],
+    tag, children: [], dataset: {},
     setAttribute() {},
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.children = children; }
@@ -82,4 +82,26 @@ vm.runInContext(`
   renderSessionHead();
   assert.equal(document.getElementById('bibNumber').textContent, '02');
 `, context);
-console.log('Entrenamientos: días locales únicos, mes, ritmo, vacío y conservación del historial OK.');
+vm.runInContext(`
+  // El selector cuenta el historial de cada atleta, aunque otro esté activo.
+  store = emptyStore();
+  store.users = [{ id: 'first', name: 'Primero' }, { id: 'second', name: 'Segundo' }, { id: 'empty', name: 'Vacío' }];
+  store.logs = { first: normaliseLog(JSON.parse(JSON.stringify(state))), second: emptyLog(), empty: emptyLog() };
+  store.logs.second.sessions = [record(yesterday.toISOString()), record(yesterday.toISOString(), 'e')];
+  store.logs.second.otherDays = [dateKey(new Date())];
+  const beforeProfiles = JSON.stringify(store);
+  assert.match(summaryOf('first'), /^2 entrenamientos · /);
+  assert.match(summaryOf('second'), /^1 entrenamiento · /);
+  assert.equal(summaryOf('empty'), 'Sin entrenamientos todavía');
+  assert.equal(summaryOf('missing'), 'Sin entrenamientos todavía');
+  renderProfiles();
+  const cards = document.getElementById('profileList').children;
+  assert.match(cards[0].children[0].children[1].children[1].textContent, /^2 entrenamientos · /);
+  assert.match(cards[1].children[0].children[1].children[1].textContent, /^1 entrenamiento · /);
+  assert.equal(cards[2].children[0].children[1].children[1].textContent, 'Sin entrenamientos todavía');
+  assert.equal(JSON.stringify(store), beforeProfiles);
+  // Dos registros a ambos lados de medianoche local son dos entrenamientos.
+  store.logs.second.sessions = [record(new Date(2026, 10, 25, 0, 1).toISOString()), record(new Date(2026, 10, 24, 23, 59).toISOString())];
+  assert.match(summaryOf('second'), /^2 entrenamientos · /);
+`, context);
+console.log('Entrenamientos: días locales únicos, selector de atletas, mes, ritmo, vacío y conservación del historial OK.');
